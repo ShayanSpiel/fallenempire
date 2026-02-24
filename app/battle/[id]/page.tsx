@@ -782,15 +782,15 @@ export default function BattlePage() {
       return;
     }
 
-    // Prevent concurrent requests
-    if (fightButtonLoading || actionLoading) {
+    // Ref-based guard to prevent double execution (state updates are async)
+    if (pendingAttacksRef.current > 0) {
       return;
     }
 
     // Set loading state
     lastAttackTimestampRef.current = now;
+    pendingAttacksRef.current = 1;
     setFightButtonLoading(true);
-    pendingAttacksRef.current += 1;
     setActionLoading(true);
 
     // Cancel any in-flight request
@@ -954,8 +954,8 @@ export default function BattlePage() {
       }
 
       // Reset loading states
-      pendingAttacksRef.current = Math.max(0, pendingAttacksRef.current - 1);
-      setActionLoading(pendingAttacksRef.current > 0);
+      pendingAttacksRef.current = 0;
+      setActionLoading(false);
       setFightButtonLoading(false);
     }
   }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
