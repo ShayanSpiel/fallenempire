@@ -22,20 +22,6 @@ export function reportWebVital(metric: WebVitals) {
   if (process.env.NODE_ENV === 'development') {
     console.log(`[Web Vitals] ${metric.name}: ${metric.value.toFixed(2)}ms (${metric.rating})`);
   }
-
-  // Send to analytics endpoint (optional)
-  if (typeof window !== 'undefined' && 'navigator' in window) {
-    const body = {
-      name: metric.name,
-      value: metric.value,
-      rating: metric.rating,
-      url: window.location.href,
-      timestamp: new Date().toISOString(),
-    };
-
-    // Use sendBeacon for reliability (won't be blocked by navigations)
-    navigator.sendBeacon('/api/analytics/web-vitals', JSON.stringify(body));
-  }
 }
 
 /**
