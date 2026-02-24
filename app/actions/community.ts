@@ -6,6 +6,8 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getUserProfile, MINIMAL_PROFILE_SELECT_FIELDS } from "@/lib/database-helpers";
+import { getProfileId, getAuthenticatedUserProfile, handleActionError } from "@/lib/action-helpers";
 // TODO: Replace with new LLM system when needed
 // import { analystModel } from "@/lib/ai-system/_deprecated/adapters/langchain-compat";
 import { 
@@ -23,15 +25,6 @@ import { NotificationType } from "@/lib/types/notifications";
 import { recalculateIdeologyDebounced } from "./ideology";
 
 const isValidHex = (hex: string) => /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex);
-
-async function getProfileId() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  const { data: profile } = await supabase.from("users").select("id").eq("auth_id", user.id).maybeSingle();
-  if (!profile) throw new Error("Profile not found");
-  return { supabase, profileId: profile.id };
-}
 
 type CommunityNotificationPayload = {
   communityId: string;

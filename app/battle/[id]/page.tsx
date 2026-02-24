@@ -782,6 +782,11 @@ export default function BattlePage() {
       return;
     }
 
+    // Prevent concurrent requests
+    if (fightButtonLoading || actionLoading) {
+      return;
+    }
+
     // Set loading state
     lastAttackTimestampRef.current = now;
     setFightButtonLoading(true);
@@ -953,7 +958,7 @@ export default function BattlePage() {
       setActionLoading(pendingAttacksRef.current > 0);
       setFightButtonLoading(false);
     }
-  }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage, userSide]);
+  }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
 
   // Note: spawnFloatingHit and scheduleLogRemoval are now provided by useBattleAnimations hook
 

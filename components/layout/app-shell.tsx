@@ -43,6 +43,7 @@ import { searchInputClasses } from "@/components/ui/search-input"
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser"
 import { realtimeManager } from "@/lib/services/notification-service"
 import { UserVitalsProvider, useUserVitals } from "@/components/layout/user-vitals"
+import { PerformanceMonitor } from "@/components/layout/performance-monitor"
 import { ENERGY_CAP, ENERGY_REGEN_PER_HOUR } from "@/lib/gameplay/constants"
 
 const STATS_DRAWER_STORAGE_KEY = "stats-drawer-open-state"
@@ -86,6 +87,7 @@ interface AppShellProps {
 export function AppShell({ children, user }: AppShellProps) {
   return (
     <UserVitalsProvider userId={user?.id ?? null} initialEnergy={user?.energy ?? null}>
+      <PerformanceMonitor />
       <AppShellContent user={user}>{children}</AppShellContent>
     </UserVitalsProvider>
   )
