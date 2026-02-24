@@ -102,8 +102,18 @@ export async function markNotificationAsRead(
     const data = await response.json();
     console.log("[markNotificationAsRead] Server response:", data);
     if (data?.counts) {
-      console.log("[markNotificationAsRead] Broadcasting server counts:", data.counts);
+      console.log("[markNotificationAsRead] Broadcasting server counts immediately:", data.counts);
+      // Broadcast with immediate=true to ensure it gets to subscribers right away
       realtimeManager.broadcastCounts(data.counts, true);
+      // Also save to cache and localStorage for immediate UI updates
+      notificationCache.set("counts", data.counts, 1 * 60 * 1000);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("notification-counts", JSON.stringify(data.counts));
+        } catch (e) {
+          console.error("[markNotificationAsRead] Failed to save to localStorage:", e);
+        }
+      }
       return;
     }
   } catch (error) {
@@ -134,8 +144,16 @@ export async function markAllNotificationsAsRead(): Promise<void> {
     const data = await response.json();
     console.log("[markAllNotificationsAsRead] Server response:", data);
     if (data?.counts) {
-      console.log("[markAllNotificationsAsRead] Broadcasting server counts:", data.counts);
+      console.log("[markAllNotificationsAsRead] Broadcasting server counts immediately:", data.counts);
       realtimeManager.broadcastCounts(data.counts, true);
+      notificationCache.set("counts", data.counts, 1 * 60 * 1000);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("notification-counts", JSON.stringify(data.counts));
+        } catch (e) {
+          console.error("[markAllNotificationsAsRead] Failed to save to localStorage:", e);
+        }
+      }
       return;
     }
   } catch (error) {
@@ -169,8 +187,16 @@ export async function archiveNotification(
     const data = await response.json();
     console.log("[archiveNotification] Server response:", data);
     if (data?.counts) {
-      console.log("[archiveNotification] Broadcasting server counts:", data.counts);
+      console.log("[archiveNotification] Broadcasting server counts immediately:", data.counts);
       realtimeManager.broadcastCounts(data.counts, true);
+      notificationCache.set("counts", data.counts, 1 * 60 * 1000);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("notification-counts", JSON.stringify(data.counts));
+        } catch (e) {
+          console.error("[archiveNotification] Failed to save to localStorage:", e);
+        }
+      }
       return;
     }
   } catch (error) {
@@ -258,8 +284,16 @@ export async function batchMarkNotificationsAsRead(ids: string[]): Promise<void>
     const data = await response.json();
     console.log("[batchMarkNotificationsAsRead] Server response:", data);
     if (data?.counts) {
-      console.log("[batchMarkNotificationsAsRead] Broadcasting server counts:", data.counts);
+      console.log("[batchMarkNotificationsAsRead] Broadcasting server counts immediately:", data.counts);
       realtimeManager.broadcastCounts(data.counts, true);
+      notificationCache.set("counts", data.counts, 1 * 60 * 1000);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("notification-counts", JSON.stringify(data.counts));
+        } catch (e) {
+          console.error("[batchMarkNotificationsAsRead] Failed to save to localStorage:", e);
+        }
+      }
       return;
     }
   } catch (error) {

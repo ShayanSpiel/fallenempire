@@ -47,19 +47,27 @@ export const NotificationIcon: FC<NotificationIconProps> = ({
     console.log("[NotificationIcon] Count changed:", {
       prev: prevCountRef.current,
       current: counts.total,
+      total: counts,
     });
-    if (counts.total > prevCountRef.current) {
-      // New notification arrived
-      console.log("[NotificationIcon] Triggering ring animation");
-      const rafId = requestAnimationFrame(() => setIsAnimating(true));
-      const timer = setTimeout(() => setIsAnimating(false), 1200);
-      prevCountRef.current = counts.total;
-      return () => {
-        cancelAnimationFrame(rafId);
-        clearTimeout(timer);
-      };
+
+    // If count decreased (mark as read) or increased (new notification)
+    if (counts.total !== prevCountRef.current) {
+      if (counts.total > prevCountRef.current) {
+        // New notification arrived
+        console.log("[NotificationIcon] Triggering ring animation - new notification");
+        const rafId = requestAnimationFrame(() => setIsAnimating(true));
+        const timer = setTimeout(() => setIsAnimating(false), 1200);
+        prevCountRef.current = counts.total;
+        return () => {
+          cancelAnimationFrame(rafId);
+          clearTimeout(timer);
+        };
+      } else {
+        // Count decreased
+        console.log("[NotificationIcon] Count decreased - notification marked as read");
+        prevCountRef.current = counts.total;
+      }
     }
-    prevCountRef.current = counts.total;
   }, [counts.total]);
 
   useEffect(() => {

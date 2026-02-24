@@ -387,17 +387,11 @@ export function useNotificationCounts(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
 
-    console.log("[useNotificationCounts] Setting up count subscription, current subscribers:", 0);
+    console.log("[useNotificationCounts] Setting up count subscription");
     const unsubscribe = realtimeManager.subscribeToCounts((updated) => {
       console.log("[useNotificationCounts] Received count update from realtimeManager:", updated);
-      setCounts((prev) => {
-        // Only update if counts actually changed
-        if (JSON.stringify(prev) !== JSON.stringify(updated)) {
-          console.log("[useNotificationCounts] Counts changed, updating state");
-          return updated;
-        }
-        return prev;
-      });
+      // Always update state with the new counts
+      setCounts(updated);
     });
 
     return () => {

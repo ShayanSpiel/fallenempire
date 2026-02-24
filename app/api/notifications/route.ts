@@ -57,10 +57,13 @@ async function computeCounts(admin: typeof supabaseAdmin, profileId: string) {
     .maybeSingle();
 
   if (error) {
+    console.error("[computeCounts] Error fetching from view:", error);
     throw error;
   }
 
-  return {
+  console.log("[computeCounts] Raw data from view:", data);
+
+  const result = {
     total: data?.total ?? 0,
     messages: data?.messages ?? 0,
     world: data?.world ?? 0,
@@ -68,6 +71,9 @@ async function computeCounts(admin: typeof supabaseAdmin, profileId: string) {
     social: data?.social ?? 0,
     lastNotificationAt: data?.last_notification_at ?? null,
   };
+
+  console.log("[computeCounts] Computed result:", result);
+  return result;
 }
 
 // ==================== GET Handler ====================
@@ -243,6 +249,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (notificationId) {
+        console.log("[POST markAsRead] Marking notification as read:", notificationId);
         const { error } = await admin
           .from("notifications")
           .update({ is_read: true, read_at: new Date().toISOString() })
@@ -250,6 +257,7 @@ export async function POST(request: NextRequest) {
           .eq("user_id", profile.id);
 
         if (error) {
+          console.error("[POST markAsRead] Error marking notification:", error);
           return NextResponse.json(
             { error: "Failed to mark notification as read" },
             { status: 500 }
@@ -257,6 +265,7 @@ export async function POST(request: NextRequest) {
         }
 
         const counts = await computeCounts(admin, profile.id);
+        console.log("[POST markAsRead] Returning counts:", counts);
         return NextResponse.json({ success: true, counts }, { status: 200 });
       }
 

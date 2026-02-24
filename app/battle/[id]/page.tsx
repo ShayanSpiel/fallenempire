@@ -776,82 +776,30 @@ export default function BattlePage() {
     if (last && now - last < FIGHT_BUTTON_COOLDOWN_MS) {
       return;
     }
-    lastAttackTimestampRef.current = now;
 
     // Energy check
     if ((currentUser.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST) {
       return;
     }
 
-    // Button feedback (in-memory; not tied to API latency)
+    // Set loading state
+    lastAttackTimestampRef.current = now;
     setFightButtonLoading(true);
-    if (fightButtonLoadingTimerRef.current) clearTimeout(fightButtonLoadingTimerRef.current);
-    fightButtonLoadingTimerRef.current = setTimeout(() => {
-      setFightButtonLoading(false);
-      fightButtonLoadingTimerRef.current = null;
-    }, FIGHT_BUTTON_COOLDOWN_MS);
-
-    const dmg = Math.floor(100 * Math.max(1, currentUser.strength ?? 1));
-    const rpcDamage = userSide === "attacker" ? dmg : -dmg;
-
-    // ========================================
-    // INSTANT OPTIMISTIC UPDATE - Show immediately
-    // ========================================
-    const previousBattle = battle;
-    const previousEnergy = currentUser.energy ?? 0;
-
     pendingAttacksRef.current += 1;
     setActionLoading(true);
-
-    // Update wall damage optimistically for instant feedback
-    setBattle((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        current_defense: Math.max(0, prev.current_defense - rpcDamage),
-        attacker_score: (prev.attacker_score ?? 0) + (rpcDamage > 0 ? rpcDamage : 0),
-        defender_score: (prev.defender_score ?? 0) + (rpcDamage < 0 ? Math.abs(rpcDamage) : 0),
-      };
-    });
-
-    // Update energy optimistically
-    const optimisticEnergy = Math.max(0, previousEnergy - BATTLE_ATTACK_ENERGY_COST);
-    setCurrentUser((prev) => (prev ? { ...prev, energy: optimisticEnergy } : null));
-    setEnergy(optimisticEnergy);
-
-    // Show optimistic visual feedback immediately (assume HIT)
-    triggerHeroBump(userSide, HERO_BUMP_DURATION);
-    triggerScoreBump(SCORE_BUMP_DURATION);
-    spawnFloatingHit(userSide, dmg, "HIT");
-
-    // Optimistically track hero damage
-    const optimisticLog: BattleLog = {
-      id: `optimistic-${Date.now()}`,
-      user: currentUser.username || "You",
-      user_avatar: currentUser.avatar_url,
-      damage: dmg,
-      side: userSide,
-      actor_id: currentUser.id,
-      result: "HIT",
-    };
-    ingestHeroLog(optimisticLog);
-    updateHeroLeaders();
-
-    // ========================================
-    // API CALL - Non-blocking background sync with deduplication
-    // ========================================
 
     // Cancel any in-flight request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Create new AbortController for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
-      // Include adrenaline bonus for defenders
+      // ========================================
+      // FETCH FROM BACKEND - Single source of truth
+      // ========================================
       const adrenalineBonus = userSide === "defender" ? adrenalineState.bonusRage : 0;
 
       const res = await fetch("/api/battle/attack", {
@@ -868,150 +816,144 @@ export default function BattlePage() {
       const payload = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        // ========================================
-        // ERROR: ROLLBACK optimistic updates
-        // ========================================
-        console.error("Battle attack failed:", payload);
-
-        setBattle(previousBattle);
-        setCurrentUser((prev) => (prev ? { ...prev, energy: previousEnergy } : null));
-        setEnergy(previousEnergy);
-
         toast.error(payload.error || "Attack failed", { duration: 2000 });
-      } else {
-        // ========================================
-        // SUCCESS: Sync with server (refine optimistic values)
-        // ========================================
-        const actualDamage = payload.damage ?? 0;
-        const result = payload.result;
-
-        // If MISS, rollback the wall damage
-        if (result === "MISS") {
-          setBattle(previousBattle);
-        } else if (result === "HIT" || result === "CRITICAL") {
-          // Use server values for accuracy (might differ due to critical)
-          if (
-            typeof payload.current_defense === "number" &&
-            typeof payload.attacker_score === "number" &&
-            typeof payload.defender_score === "number"
-          ) {
-            setBattle((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    current_defense: payload.current_defense,
-                    attacker_score: payload.attacker_score,
-                    defender_score: payload.defender_score,
-                  }
-                : prev
-            );
-          }
-        }
-
-        // Update energy from server
-        const actualEnergy = payload.energy ?? optimisticEnergy;
-        setCurrentUser((prev) => (prev ? { ...prev, energy: actualEnergy } : null));
-        setEnergy(actualEnergy);
-
-        // Update rage and focus from server
-        if (typeof payload.rage === "number") {
-          const rageIncrease = payload.rage - previousRageRef.current;
-          if (rageIncrease > 0) {
-            // Spawn floating rage animation
-            spawnFloatingRage(rageIncrease);
-          }
-          previousRageRef.current = payload.rage;
-          setUserRage(payload.rage);
-        }
-        if (typeof payload.focus === "number") setUserFocus(payload.focus);
-
-        // Show combat result
-        if (result) {
-          setLastCombatResult({
-            result: result,
-            damage: actualDamage,
-          });
-          setTimeout(() => setLastCombatResult(null), 2000);
-        }
-
-        // Warn about disarray
-        if (payload.disarrayMultiplier > 1.5) {
-          toast.warning(`⚠️ Disarray: ${payload.disarrayMultiplier.toFixed(1)}x energy cost`, {
-            duration: 2000,
-          });
-        }
-
-        // ========================================
-        // ASYNC TASKS - Don't block UI (only if hit)
-        // ========================================
-        if (result === "HIT" || result === "CRITICAL") {
-          Promise.all([
-            recordBattleParticipation(currentUser.id, battle.id, userSide, actualDamage)
-              .then((result) => {
-                if (result.success && result.stats) {
-                  setCurrentUser((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          total_damage_dealt: result.stats!.total_damage_dealt,
-                          highest_damage_battle: result.stats!.highest_damage_battle,
-                          battles_fought: result.stats!.battles_fought,
-                          current_military_rank: result.stats!.current_military_rank,
-                          military_rank_score: result.stats!.military_rank_score,
-                        }
-                      : prev
-                  );
-                }
-              })
-              .catch((err) => console.error("Battle participation error:", err)),
-
-            awardXp(currentUser.id, "battle", { battle_id: battle.id, damage: actualDamage })
-              .then((xpResult) => {
-                if (xpResult.success && xpResult.levelUps > 0) {
-                  showLevelUpToast({
-                    level: xpResult.newLevel,
-                    levelUps: xpResult.levelUps,
-                    totalXp: xpResult.newTotalXp,
-                  });
-                }
-              })
-              .catch((err) => console.error("XP award error:", err)),
-          ]);
-        }
-      }
-    } catch (err) {
-      // ========================================
-      // HANDLE ERRORS: Abort vs Network
-      // ========================================
-
-      // If request was aborted (superseded by newer request), silently ignore
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.debug("Attack request cancelled (superseded)");
         return;
       }
 
-      // Network or other errors: ROLLBACK optimistic updates
-      console.error("Network error:", err);
+      // ========================================
+      // SUCCESS: Apply backend response (single update)
+      // ========================================
+      const result = payload.result;
+      const actualDamage = payload.damage ?? 0;
 
-      setBattle(previousBattle);
-      setCurrentUser((prev) => (prev ? { ...prev, energy: previousEnergy } : null));
-      setEnergy(previousEnergy);
+      // Update battle state from backend
+      if (
+        typeof payload.current_defense === "number" &&
+        typeof payload.attacker_score === "number" &&
+        typeof payload.defender_score === "number"
+      ) {
+        setBattle((prev) =>
+          prev
+            ? {
+                ...prev,
+                current_defense: payload.current_defense,
+                attacker_score: payload.attacker_score,
+                defender_score: payload.defender_score,
+              }
+            : prev
+        );
+      }
 
+      // Update energy from backend
+      if (typeof payload.energy === "number") {
+        setCurrentUser((prev) => (prev ? { ...prev, energy: payload.energy } : null));
+        setEnergy(payload.energy);
+      }
+
+      // Update rage and focus from backend
+      if (typeof payload.rage === "number") {
+        const rageIncrease = payload.rage - previousRageRef.current;
+        if (rageIncrease > 0) {
+          spawnFloatingRage(rageIncrease);
+        }
+        previousRageRef.current = payload.rage;
+        setUserRage(payload.rage);
+      }
+      if (typeof payload.focus === "number") setUserFocus(payload.focus);
+
+      // Show visual feedback based on actual result
+      triggerHeroBump(userSide, HERO_BUMP_DURATION);
+      triggerScoreBump(SCORE_BUMP_DURATION);
+      spawnFloatingHit(userSide, actualDamage, result);
+
+      // Track hero damage with actual result
+      if (result === "HIT" || result === "CRITICAL") {
+        const battleLog: BattleLog = {
+          id: `${Date.now()}`,
+          user: currentUser.username || "You",
+          user_avatar: currentUser.avatar_url,
+          damage: actualDamage,
+          side: userSide,
+          actor_id: currentUser.id,
+          result,
+        };
+        ingestHeroLog(battleLog);
+        updateHeroLeaders();
+      }
+
+      // Show combat result
+      if (result) {
+        setLastCombatResult({
+          result: result,
+          damage: actualDamage,
+        });
+        setTimeout(() => setLastCombatResult(null), 2000);
+      }
+
+      // Warn about disarray
+      if (payload.disarrayMultiplier > 1.5) {
+        toast.warning(`⚠️ Disarray: ${payload.disarrayMultiplier.toFixed(1)}x energy cost`, {
+          duration: 2000,
+        });
+      }
+
+      // ========================================
+      // ASYNC TASKS - Non-blocking (only if hit)
+      // ========================================
+      if (result === "HIT" || result === "CRITICAL") {
+        Promise.all([
+          recordBattleParticipation(currentUser.id, battle.id, userSide, actualDamage)
+            .then((result) => {
+              if (result.success && result.stats) {
+                setCurrentUser((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        total_damage_dealt: result.stats!.total_damage_dealt,
+                        highest_damage_battle: result.stats!.highest_damage_battle,
+                        battles_fought: result.stats!.battles_fought,
+                        current_military_rank: result.stats!.current_military_rank,
+                        military_rank_score: result.stats!.military_rank_score,
+                      }
+                    : prev
+                );
+              }
+            })
+            .catch((err) => console.error("Battle participation error:", err)),
+
+          awardXp(currentUser.id, "battle", { battle_id: battle.id, damage: actualDamage })
+            .then((xpResult) => {
+              if (xpResult.success && xpResult.levelUps > 0) {
+                showLevelUpToast({
+                  level: xpResult.newLevel,
+                  levelUps: xpResult.levelUps,
+                  totalXp: xpResult.newTotalXp,
+                });
+              }
+            })
+            .catch((err) => console.error("XP award error:", err)),
+        ]);
+      }
+    } catch (err) {
+      // If request was aborted (superseded by newer request), silently ignore
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+
+      // Network error
       toast.error("Network error - please try again", { duration: 2000 });
     } finally {
-      // ========================================
-      // ALWAYS: Clear loading state IMMEDIATELY
-      // ========================================
-
-      // Clear abort controller if this was the current one
+      // Clear abort controller
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
 
+      // Reset loading states
       pendingAttacksRef.current = Math.max(0, pendingAttacksRef.current - 1);
       setActionLoading(pendingAttacksRef.current > 0);
+      setFightButtonLoading(false);
     }
-  }, [battle, isFinished, currentUser, userSide, setEnergy]);
+  }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage, userSide]);
 
   // Note: spawnFloatingHit and scheduleLogRemoval are now provided by useBattleAnimations hook
 
