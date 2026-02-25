@@ -960,6 +960,17 @@ export default function BattlePage() {
     }
   }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
 
+  // Wrapper to prevent double-clicks at the UI level by checking ref synchronously
+  const handleFightClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Prevent double execution at the click level by checking ref immediately
+    if (pendingAttacksRef.current > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    await handleFight();
+  }, [handleFight]);
+
   // Note: spawnFloatingHit and scheduleLogRemoval are now provided by useBattleAnimations hook
 
   useEffect(() => {
@@ -1385,7 +1396,11 @@ export default function BattlePage() {
 
 	              {/* Center FIGHT button - wider with more spacing */}
 	              <div className="mx-2 md:mx-4">
-	                <Button onClick={handleFight} disabled={fightButtonLoading || isFinished || (currentUser?.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST} className={cn("relative overflow-visible text-lg font-black uppercase tracking-widest h-12 md:h-16 rounded-2xl px-8 md:px-12 md:min-w-[180px] active:border-b-0 active:translate-y-1 transition-all min-w-fit border border-b-4 border-amber-900/60 shadow-lg shadow-amber-900/30", BATTLE_THEME.ui.buttons.fight.bg, BATTLE_THEME.ui.buttons.fight.text, BATTLE_THEME.ui.buttons.fight.hover)}>
+	                <Button
+	                  onClick={handleFightClick}
+	                  disabled={fightButtonLoading || isFinished || (currentUser?.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST}
+	                  className={cn("relative overflow-visible text-lg font-black uppercase tracking-widest h-12 md:h-16 rounded-2xl px-8 md:px-12 md:min-w-[180px] active:border-b-0 active:translate-y-1 transition-all min-w-fit border border-b-4 border-amber-900/60 shadow-lg shadow-amber-900/30", BATTLE_THEME.ui.buttons.fight.bg, BATTLE_THEME.ui.buttons.fight.text, BATTLE_THEME.ui.buttons.fight.hover)}
+	                >
 	                  {fightButtonLoading ? <Loader2 className="animate-spin h-5 md:h-8 w-5 md:w-8" /> : "FIGHT"}
 	                </Button>
 	              </div>
