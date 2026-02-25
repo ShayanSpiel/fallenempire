@@ -546,27 +546,12 @@ export async function createCompany(
     return { success: false, error: "Invalid company type" };
   }
 
-  // Check user has required resources
-  const buildCostResources = companyType.build_cost_resources as Record<
-    string,
-    number
-  >;
-  for (const [resourceId, quantity] of Object.entries(buildCostResources)) {
-    const { data: inventory } = await supabase
-      .from("user_inventory")
-      .select("quantity")
-      .eq("user_id", userId)
-      .eq("resource_id", resourceId);
-
-    const totalQuantity =
-      inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-
-    if (totalQuantity < quantity) {
-      return { success: false, error: "Insufficient resources" };
-    }
-  }
+  // Note: Company creation only requires gold.
+  // Resources are used for WORKING at companies, not for creating them.
 
   // Deduct gold using transaction service (single source of truth)
+  console.log(`[createCompany] Attempting to deduct ${companyType.build_cost_gold} gold for company creation`);
+
   const { data: deductResult, error: goldError } = await supabase.rpc(
     "deduct_gold_enhanced",
     {
@@ -583,32 +568,24 @@ export async function createCompany(
     }
   );
 
-  if (goldError || !deductResult?.success) {
+  if (goldError) {
+    console.error(`[createCompany] Gold RPC error:`, goldError);
+    return {
+      success: false,
+      error: `Gold deduction failed: ${goldError.message}`,
+    };
+  }
+
+  console.log(`[createCompany] Gold deduction result:`, deductResult);
+
+  if (!deductResult?.success) {
     return {
       success: false,
       error: deductResult?.error || "Insufficient gold",
     };
   }
 
-  // Deduct resources
-  for (const [resourceId, quantity] of Object.entries(buildCostResources)) {
-    // Get first available quality tier with enough quantity
-    const { data: inventory } = await supabase
-      .from("user_inventory")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("resource_id", resourceId)
-      .gte("quantity", quantity)
-      .limit(1)
-      .single();
-
-    if (inventory) {
-      await supabase
-        .from("user_inventory")
-        .update({ quantity: inventory.quantity - quantity })
-        .eq("id", inventory.id);
-    }
-  }
+  // No resource deduction needed - company creation only costs gold
 
   // Determine which community (if any) this company belongs to.
   // Governance follows the land: if the hex has an owner community, the company belongs to it.
