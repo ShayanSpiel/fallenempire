@@ -768,26 +768,34 @@ export default function BattlePage() {
   }, [battle, adrenalineConfig, userSide, spawnFloatingAdrenalineRage]);
 
   const handleFight = useCallback(async () => {
-    if (!battle || isFinished || !currentUser || !userSide) return;
+    console.log('[FIGHT] handleFight called, pendingAttacksRef:', pendingAttacksRef.current);
+    if (!battle || isFinished || !currentUser || !userSide) {
+      console.log('[FIGHT] Early exit: missing required state');
+      return;
+    }
 
     // Rate limit check
     const now = Date.now();
     const last = lastAttackTimestampRef.current;
     if (last && now - last < FIGHT_BUTTON_COOLDOWN_MS) {
+      console.log('[FIGHT] Rate limited, last attack:', now - last, 'ms ago');
       return;
     }
 
     // Energy check
     if ((currentUser.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST) {
+      console.log('[FIGHT] Not enough energy');
       return;
     }
 
     // Ref-based guard to prevent double execution (state updates are async)
     if (pendingAttacksRef.current > 0) {
+      console.log('[FIGHT] Guard blocked: already pending');
       return;
     }
 
     // Set loading state
+    console.log('[FIGHT] Starting attack...');
     lastAttackTimestampRef.current = now;
     pendingAttacksRef.current = 1;
     setFightButtonLoading(true);
@@ -807,6 +815,7 @@ export default function BattlePage() {
       // ========================================
       const adrenalineBonus = userSide === "defender" ? adrenalineState.bonusRage : 0;
 
+      console.log('[FIGHT] Sending attack request to /api/battle/attack');
       const res = await fetch("/api/battle/attack", {
         method: "POST",
         credentials: "include",
@@ -818,12 +827,16 @@ export default function BattlePage() {
         signal: abortController.signal,
       });
 
+      console.log('[FIGHT] Attack response received, status:', res.status);
       const payload = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        console.log('[FIGHT] Attack failed:', payload.error);
         toast.error(payload.error || "Attack failed", { duration: 2000 });
         return;
       }
+
+      console.log('[FIGHT] Attack successful, result:', payload.result, 'damage:', payload.damage);
 
       // ========================================
       // SUCCESS: Apply backend response (single update)
@@ -954,20 +967,25 @@ export default function BattlePage() {
       }
 
       // Reset loading states
+      console.log('[FIGHT] Resetting state, pendingAttacksRef was:', pendingAttacksRef.current);
       pendingAttacksRef.current = 0;
       setActionLoading(false);
       setFightButtonLoading(false);
+      console.log('[FIGHT] Attack complete, reset pendingAttacksRef to 0');
     }
   }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
 
   // Wrapper to prevent double-clicks at the UI level by checking ref synchronously
   const handleFightClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[FIGHT] Button clicked, pendingAttacksRef:', pendingAttacksRef.current);
     // Prevent double execution at the click level by checking ref immediately
     if (pendingAttacksRef.current > 0) {
+      console.log('[FIGHT] Blocked double-click: pending request already in flight');
       e.preventDefault();
       e.stopPropagation();
       return;
     }
+    console.log('[FIGHT] Proceeding with attack...');
     await handleFight();
   }, [handleFight]);
 
