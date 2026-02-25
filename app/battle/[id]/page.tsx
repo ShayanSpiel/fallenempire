@@ -109,6 +109,7 @@ export default function BattlePage() {
   const previousRageRef = useRef<number>(0);
   const previousAdrenalineRageRef = useRef<number>(0);
   const tauntCountRef = useRef<{ count: number; resetTime: number }>({ count: 0, resetTime: 0 });
+  const lastOwnAttackDefenseRef = useRef<number | null>(null); // Track last attack to prevent realtime double animations
 
   // Adrenaline State
   const [adrenalineConfig, setAdrenalineConfig] = useState<AdrenalineConfig | null>(null);
@@ -519,9 +520,27 @@ export default function BattlePage() {
 
         const incomingBattle = payload.new as BattleState;
 
+        // Check if this is a realtime echo of our own recent attack
+        // If the defense matches what we just set, skip the update to prevent double animations
+        const isOwnRecentAttack =
+          lastOwnAttackDefenseRef.current !== null &&
+          incomingBattle.current_defense === lastOwnAttackDefenseRef.current;
+
+        console.log('[REALTIME] Battle UPDATE:', {
+          incoming_defense: incomingBattle.current_defense,
+          our_last_defense: lastOwnAttackDefenseRef.current,
+          isOwnRecentAttack,
+        });
+
         // Smart reconciliation: merge with current state intelligently
         setBattle((currentBattle) => {
           if (!currentBattle) return incomingBattle;
+
+          // Skip update if this is our own recent attack (prevents duplicate animations)
+          if (isOwnRecentAttack) {
+            console.log('[REALTIME] Skipping duplicate update from our own attack');
+            return currentBattle;
+          }
 
           // If we have pending attacks, be conservative about overwriting optimistic updates
           // Only update if the incoming data is significantly different (status change, major defense change)
@@ -555,8 +574,17 @@ export default function BattlePage() {
           // (we already show optimistic animations on attack)
           const isOwnAction = normalizedLog.actor_id === currentUser?.id;
 
+          console.log('[BATTLE_LOGS] INSERT event:', {
+            username: normalizedLog.username,
+            actor_id: normalizedLog.actor_id,
+            currentUser_id: currentUser?.id,
+            isOwnAction,
+            damage: normalizedLog.damage,
+          });
+
           if (!isOwnAction) {
             // Only show visual effects for other players' actions
+            console.log('[BATTLE_LOGS] Spawning animations for other player action');
             triggerHeroBump(normalizedLog.side, HERO_BUMP_DURATION);
             triggerScoreBump(SCORE_BUMP_DURATION);
 
@@ -571,6 +599,8 @@ export default function BattlePage() {
                 setAttackerLogs((prev) => [normalizedLog, ...prev].slice(0, 6));
                 scheduleLogRemoval(setAttackerLogs, normalizedLog.id);
             }
+          } else {
+            console.log('[BATTLE_LOGS] Skipping animations for own action');
           }
 
           // Always ingest for hero tracking (even own actions)
@@ -850,6 +880,8 @@ export default function BattlePage() {
         typeof payload.attacker_score === "number" &&
         typeof payload.defender_score === "number"
       ) {
+        // Track this state so realtime won't duplicate animations
+        lastOwnAttackDefenseRef.current = payload.current_defense;
         setBattle((prev) =>
           prev
             ? {
@@ -972,6 +1004,13 @@ export default function BattlePage() {
       setActionLoading(false);
       setFightButtonLoading(false);
       console.log('[FIGHT] Attack complete, reset pendingAttacksRef to 0');
+
+      // Clear the own attack defense reference after a short delay
+      // This prevents realtime updates from being skipped for too long
+      setTimeout(() => {
+        console.log('[FIGHT] Clearing lastOwnAttackDefenseRef');
+        lastOwnAttackDefenseRef.current = null;
+      }, 2000);
     }
   }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
 
