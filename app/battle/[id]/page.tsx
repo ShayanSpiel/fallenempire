@@ -526,19 +526,12 @@ export default function BattlePage() {
           lastOwnAttackDefenseRef.current !== null &&
           incomingBattle.current_defense === lastOwnAttackDefenseRef.current;
 
-        console.log('[REALTIME] Battle UPDATE:', {
-          incoming_defense: incomingBattle.current_defense,
-          our_last_defense: lastOwnAttackDefenseRef.current,
-          isOwnRecentAttack,
-        });
-
         // Smart reconciliation: merge with current state intelligently
         setBattle((currentBattle) => {
           if (!currentBattle) return incomingBattle;
 
           // Skip update if this is our own recent attack (prevents duplicate animations)
           if (isOwnRecentAttack) {
-            console.log('[REALTIME] Skipping duplicate update from our own attack');
             return currentBattle;
           }
 
@@ -574,17 +567,8 @@ export default function BattlePage() {
           // (we already show optimistic animations on attack)
           const isOwnAction = normalizedLog.actor_id === currentUser?.id;
 
-          console.log('[BATTLE_LOGS] INSERT event:', {
-            username: normalizedLog.username,
-            actor_id: normalizedLog.actor_id,
-            currentUser_id: currentUser?.id,
-            isOwnAction,
-            damage: normalizedLog.damage,
-          });
-
           if (!isOwnAction) {
             // Only show visual effects for other players' actions
-            console.log('[BATTLE_LOGS] Spawning animations for other player action');
             triggerHeroBump(normalizedLog.side, HERO_BUMP_DURATION);
             triggerScoreBump(SCORE_BUMP_DURATION);
 
@@ -599,8 +583,6 @@ export default function BattlePage() {
                 setAttackerLogs((prev) => [normalizedLog, ...prev].slice(0, 6));
                 scheduleLogRemoval(setAttackerLogs, normalizedLog.id);
             }
-          } else {
-            console.log('[BATTLE_LOGS] Skipping animations for own action');
           }
 
           // Always ingest for hero tracking (even own actions)
@@ -798,34 +780,26 @@ export default function BattlePage() {
   }, [battle, adrenalineConfig, userSide, spawnFloatingAdrenalineRage]);
 
   const handleFight = useCallback(async () => {
-    console.log('[FIGHT] handleFight called, pendingAttacksRef:', pendingAttacksRef.current);
-    if (!battle || isFinished || !currentUser || !userSide) {
-      console.log('[FIGHT] Early exit: missing required state');
-      return;
-    }
+    if (!battle || isFinished || !currentUser || !userSide) return;
 
     // Rate limit check
     const now = Date.now();
     const last = lastAttackTimestampRef.current;
     if (last && now - last < FIGHT_BUTTON_COOLDOWN_MS) {
-      console.log('[FIGHT] Rate limited, last attack:', now - last, 'ms ago');
       return;
     }
 
     // Energy check
     if ((currentUser.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST) {
-      console.log('[FIGHT] Not enough energy');
       return;
     }
 
     // Ref-based guard to prevent double execution (state updates are async)
     if (pendingAttacksRef.current > 0) {
-      console.log('[FIGHT] Guard blocked: already pending');
       return;
     }
 
     // Set loading state
-    console.log('[FIGHT] Starting attack...');
     lastAttackTimestampRef.current = now;
     pendingAttacksRef.current = 1;
     setFightButtonLoading(true);
@@ -845,7 +819,6 @@ export default function BattlePage() {
       // ========================================
       const adrenalineBonus = userSide === "defender" ? adrenalineState.bonusRage : 0;
 
-      console.log('[FIGHT] Sending attack request to /api/battle/attack');
       const res = await fetch("/api/battle/attack", {
         method: "POST",
         credentials: "include",
@@ -857,16 +830,12 @@ export default function BattlePage() {
         signal: abortController.signal,
       });
 
-      console.log('[FIGHT] Attack response received, status:', res.status);
       const payload = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        console.log('[FIGHT] Attack failed:', payload.error);
         toast.error(payload.error || "Attack failed", { duration: 2000 });
         return;
       }
-
-      console.log('[FIGHT] Attack successful, result:', payload.result, 'damage:', payload.damage);
 
       // ========================================
       // SUCCESS: Apply backend response (single update)
@@ -999,16 +968,13 @@ export default function BattlePage() {
       }
 
       // Reset loading states
-      console.log('[FIGHT] Resetting state, pendingAttacksRef was:', pendingAttacksRef.current);
       pendingAttacksRef.current = 0;
       setActionLoading(false);
       setFightButtonLoading(false);
-      console.log('[FIGHT] Attack complete, reset pendingAttacksRef to 0');
 
       // Clear the own attack defense reference after a short delay
       // This prevents realtime updates from being skipped for too long
       setTimeout(() => {
-        console.log('[FIGHT] Clearing lastOwnAttackDefenseRef');
         lastOwnAttackDefenseRef.current = null;
       }, 2000);
     }
@@ -1016,15 +982,12 @@ export default function BattlePage() {
 
   // Wrapper to prevent double-clicks at the UI level by checking ref synchronously
   const handleFightClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('[FIGHT] Button clicked, pendingAttacksRef:', pendingAttacksRef.current);
     // Prevent double execution at the click level by checking ref immediately
     if (pendingAttacksRef.current > 0) {
-      console.log('[FIGHT] Blocked double-click: pending request already in flight');
       e.preventDefault();
       e.stopPropagation();
       return;
     }
-    console.log('[FIGHT] Proceeding with attack...');
     await handleFight();
   }, [handleFight]);
 
