@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Trophy, Clock } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Leaf, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BattlePassData } from "./types";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BattlePassBannerSliderProps {
   data: BattlePassData | null;
@@ -49,6 +50,15 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
     }
   };
 
+  // Calculate if there are unclaimed rewards
+  const hasUnclaimedRewards = useMemo(() => {
+    return tiers.some((tier) => {
+      const isUnlocked = tier.tier_number <= progress.current_tier;
+      const isClaimed = isRewardClaimed(tier.tier_number, tier.tier_type);
+      return tier.tier_type === "free" && isUnlocked && !isClaimed;
+    });
+  }, [tiers, progress.current_tier, claimed_rewards]);
+
   // Get all rewards sorted by tier
   const freeRewards = tiers
     .filter((t) => t.tier_type === "free")
@@ -85,10 +95,12 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
   };
 
   return (
-    <div className="rounded-xl border bg-gradient-to-br from-amber-500/20 via-yellow-500/15 to-amber-400/20 shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-amber-300/50 dark:border-amber-600/40 bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/80 dark:from-amber-950/40 dark:via-amber-900/30 dark:to-yellow-950/40 shadow-sm overflow-hidden">
       {/* Collapsed Header */}
       <div className="p-3 flex items-center gap-3 relative z-10">
-        <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-500 flex-shrink-0" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-400/80 dark:bg-amber-500/70 border border-amber-500/40 dark:border-amber-400/30 shadow-sm flex-shrink-0">
+          <Leaf className="w-4 h-4 text-amber-900 dark:text-amber-100" />
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -105,7 +117,7 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
               </div>
               <Link
                 href="/battlepass"
-                className="text-xs text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-medium"
+                className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium transition-colors"
               >
                 View All
               </Link>
@@ -113,23 +125,35 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 bg-amber-900/30 rounded-full overflow-hidden">
+            <div className="flex-1 h-2 bg-amber-200/60 dark:bg-amber-900/50 rounded-full overflow-hidden border border-amber-300/40 dark:border-amber-700/40">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 transition-all duration-500 shadow-lg shadow-amber-500/50"
+                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 transition-all duration-500 shadow-sm"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="text-xs text-amber-900 dark:text-amber-100 whitespace-nowrap font-semibold">
+            <span className="text-xs text-amber-900 dark:text-amber-200 whitespace-nowrap font-semibold">
               {xpInCurrentTier}/{season.xp_per_tier}
             </span>
           </div>
+
+          {/* Unclaimed Rewards Indicator - Only show when collapsed */}
+          {!isExpanded && hasUnclaimedRewards && (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-400/60 dark:bg-amber-500/50 border border-amber-500/50 dark:border-amber-400/40 hover:bg-amber-400/80 dark:hover:bg-amber-500/70 transition-all animate-pulse"
+            >
+              <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+                Rewards Ready!
+              </span>
+            </button>
+          )}
         </div>
 
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-amber-500/20"
+          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-amber-400/20 dark:hover:bg-amber-500/20 transition-colors"
         >
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" />
@@ -140,12 +164,20 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
       </div>
 
       {/* Expanded Content - Slider */}
-      {isExpanded && (
-        <div className="border-t border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-background/95">
-          <div className="p-4 space-y-3">
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-amber-300/40 dark:border-amber-700/40 bg-gradient-to-b from-amber-100/50 to-background dark:from-amber-900/20 dark:to-background">
+              <div className="p-4 space-y-3">
             {/* Free Pass */}
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+              <div className="text-xs font-semibold text-amber-800 dark:text-amber-200">
                 Free Pass
               </div>
               <div className="relative">
@@ -155,9 +187,9 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
                   size="sm"
                   onClick={goToPrevPage}
                   disabled={currentPage === 0}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 p-0 bg-background/80 hover:bg-background disabled:opacity-30"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 p-0 bg-background/90 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-30 border border-amber-300/40 dark:border-amber-600/30 transition-colors"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                 </Button>
 
                 {/* Rewards Grid */}
@@ -182,23 +214,23 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
                             "bg-green-500/20 border-green-500/50 shadow-sm",
                           isUnlocked &&
                             !isClaimed &&
-                            "bg-gradient-to-br from-amber-400/40 to-yellow-400/40 border-amber-500/70 hover:border-amber-500 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer animate-pulse"
+                            "bg-gradient-to-br from-amber-300/70 via-yellow-300/60 to-amber-400/70 dark:from-amber-500/60 dark:via-yellow-500/50 dark:to-amber-600/60 border-amber-400 dark:border-amber-500 hover:border-amber-500 dark:hover:border-amber-400 hover:shadow-lg hover:shadow-amber-400/40 cursor-pointer animate-pulse"
                         )}
                         style={{
                           boxShadow: isUnlocked && !isClaimed
-                            ? "0 0 20px rgba(251, 191, 36, 0.4)"
+                            ? "0 0 20px rgba(251, 191, 36, 0.5)"
                             : undefined,
                         }}
                       >
                         <span className="text-xl">{icon}</span>
-                        <span className="text-[9px] font-bold mt-0.5 text-foreground">
+                        <span className="text-[9px] font-bold mt-0.5 text-amber-900 dark:text-amber-100">
                           {tier.reward_amount}
                         </span>
-                        <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-amber-600 border border-background text-[8px] font-bold text-white flex items-center justify-center shadow-md z-10">
+                        <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 border border-background text-[8px] font-bold text-white flex items-center justify-center shadow-md z-10">
                           {tier.tier_number}
                         </div>
                         {isClaimed && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded-md">
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
                             <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
                               ✓
                             </div>
@@ -215,9 +247,9 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
                   size="sm"
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages - 1}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 p-0 bg-background/80 hover:bg-background disabled:opacity-30"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-8 w-8 p-0 bg-background/90 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-30 border border-amber-300/40 dark:border-amber-600/30 transition-colors"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                 </Button>
               </div>
             </div>
@@ -225,7 +257,7 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
             {/* Keeper Pass */}
             <div className="space-y-2 opacity-50">
               <div className="flex items-center gap-2">
-                <div className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+                <div className="text-xs font-semibold text-amber-800 dark:text-amber-200">
                   Keeper Pass
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
@@ -269,9 +301,11 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
                 />
               ))}
             </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

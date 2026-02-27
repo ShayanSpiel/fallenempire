@@ -9,28 +9,37 @@ import { getBattlePassData, checkDailyLoginXP } from "@/app/actions/battlepass";
 export function BattlePassWrapper() {
   const [data, setData] = useState<BattlePassData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [claimingTier, setClaimingTier] = useState<{
     tier: BattlePassTier;
     tierNumber: number;
   } | null>(null);
 
   useEffect(() => {
-    loadBattlePassData();
+    loadBattlePassData(true);
     checkDailyLogin();
   }, []);
 
-  const loadBattlePassData = async () => {
-    setLoading(true);
+  const loadBattlePassData = async (isInitialLoad = false) => {
+    if (isInitialLoad) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     const battlePassData = await getBattlePassData();
     setData(battlePassData);
-    setLoading(false);
+    if (isInitialLoad) {
+      setLoading(false);
+    } else {
+      setRefreshing(false);
+    }
   };
 
   const checkDailyLogin = async () => {
     const result = await checkDailyLoginXP();
     if (result.success && result.xp_awarded) {
       // Reload battle pass data to show updated progress
-      await loadBattlePassData();
+      await loadBattlePassData(false);
     }
   };
 
@@ -56,8 +65,8 @@ export function BattlePassWrapper() {
           setClaimingTier({ tier: claimedTier, tierNumber });
         }
 
-        // Reload data
-        await loadBattlePassData();
+        // Reload data without hiding the banner
+        await loadBattlePassData(false);
       } else {
         alert(result.error || "Failed to claim reward");
       }
@@ -67,8 +76,9 @@ export function BattlePassWrapper() {
     }
   };
 
+  // Only hide banner during initial load, not during refresh
   if (loading || !data) {
-    return null; // Don't show anything while loading
+    return null;
   }
 
   return (
