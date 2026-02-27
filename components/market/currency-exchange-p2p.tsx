@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowUpDown, MapPin, Plane, ChevronDown, X } from "lucide-react";
+import { ArrowUpDown, MapPin, Plane, ChevronDown, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,13 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
   }, []);
 
 
+  // Persist source account selection to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('exchange-source-account', sourceAccount);
+    }
+  }, [sourceAccount]);
+
   // Fetch order book when selected currency changes (not just when trading asset changes)
   useEffect(() => {
     if (!selectedCurrency) return;
@@ -254,8 +261,7 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
     setSelectedOrder(null);
     setOfferAmount("");
     setWantAmount("");
-    // Reset to personal account when switching communities (in case user isn't leader in new community)
-    setSourceAccount("personal");
+    setCurrentPage(1);
 
     // Fetch new order book for this currency
     fetchOrderBook(selectedCurrency, tradingAsset);
@@ -464,6 +470,13 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
 
   const relevantOffers = tradingAsset === "gold" ? orderBook?.sells || [] : orderBook?.buys || [];
 
+  // Pagination logic - 5 offers per page
+  const OFFERS_PER_PAGE = 5;
+  const totalPages = Math.ceil(relevantOffers.length / OFFERS_PER_PAGE);
+  const startIndex = (currentPage - 1) * OFFERS_PER_PAGE;
+  const endIndex = startIndex + OFFERS_PER_PAGE;
+  const paginatedOffers = relevantOffers.slice(startIndex, endIndex);
+
   // Show error state if no currency selected after loading
   if (!selectedCurrency) {
     return (
@@ -537,7 +550,7 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <div className="flex flex-col flex-1 min-h-0">
           {loading ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: EXCHANGE_CONFIG.skeleton.offerRows }).map((_, i) => (
@@ -545,7 +558,7 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
               ))}
             </div>
           ) : relevantOffers.length === 0 ? (
-            <div className="flex items-center justify-center h-full px-4 text-center">
+            <div className="flex items-center justify-center flex-1 px-4 text-center">
               <div>
                 <p className={EXCHANGE_CONFIG.header.subtitle}>No offers available</p>
                 {data.userHex && data.userHexCustomName && (
@@ -556,42 +569,73 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
               </div>
             </div>
           ) : (
-            <div className={EXCHANGE_CONFIG.offers.divider}>
-              {relevantOffers.slice(0, EXCHANGE_CONFIG.offers.maxLevels).map((level) => {
-                const levelData = priceLevelOrders.get(level.exchange_rate);
-                return (
-                  <OfferLevel
-                    key={level.exchange_rate}
-                    level={level}
-                    orders={levelData?.orders || []}
-                    ordersLoading={levelData?.loading !== false}
-                    currencySymbol={selectedCurrency.currencySymbol}
-                    communityColor={selectedCurrency.communityColor}
-                    tradingAsset={tradingAsset}
-                    selectedOrder={selectedOrder}
-                    onSelectOrder={setSelectedOrder}
-                    disabled={!isInCommunityLocation}
-                    currentUserId={data.userId}
-                    onCancelOrder={async (orderId) => {
-                      try {
-                        const result = await cancelExchangeOrder(orderId);
-                        if (result.success) {
-                          toast.success("Order cancelled successfully");
-                          await fetchOrderBook(selectedCurrency, tradingAsset);
-                        } else {
-                          toast.error(result.message || "Failed to cancel order");
-                        }
-                      } catch (error) {
-                        console.error("Cancel order error:", error);
-                        toast.error("Failed to cancel order");
-                      }
-                    }}
-                  />
-                );
-              })}
-            </div>
+            <>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className={EXCHANGE_CONFIG.offers.divider}>
+                  {paginatedOffers.map((level) => {
+                    const levelData = priceLevelOrders.get(level.exchange_rate);
+                    return (
+                      <OfferLevel
+                        key={level.exchange_rate}
+                        level={level}
+                        orders={levelData?.orders || []}
+                        ordersLoading={levelData?.loading !== false}
+                        currencySymbol={selectedCurrency.currencySymbol}
+                        communityColor={selectedCurrency.communityColor}
+                        tradingAsset={tradingAsset}
+                        selectedOrder={selectedOrder}
+                        onSelectOrder={setSelectedOrder}
+                        disabled={!isInCommunityLocation}
+                        currentUserId={data.userId}
+                        onCancelOrder={async (orderId) => {
+                          try {
+                            const result = await cancelExchangeOrder(orderId);
+                            if (result.success) {
+                              toast.success("Order cancelled successfully");
+                              await fetchOrderBook(selectedCurrency, tradingAsset);
+                            } else {
+                              toast.error(result.message || "Failed to cancel order");
+                            }
+                          } catch (error) {
+                            console.error("Cancel order error:", error);
+                            toast.error("Failed to cancel order");
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-2 border-t border-border/60 bg-muted/20 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
-        </ScrollArea>
+        </div>
       </Card>
 
       {/* Right: Exchange Form */}
@@ -819,18 +863,22 @@ function OfferLevel({
     onSelectOrder(isAnySelected ? null : randomOrder);
   };
 
+  // Find user's order at this price level
+  const userOrder = orders.find(o => o.user_id === currentUserId);
+
   return (
     <div className="border-b border-border/60 last:border-b-0">
-      <div className="flex items-center">
+      <div className="flex items-center relative group">
         <button
           type="button"
           onClick={selectRandomOrder}
-          disabled={disabled}
+          disabled={disabled || hasUserOrder}
           className={cn(
             EXCHANGE_CONFIG.offerLevel.button,
             "flex-1",
             isAnySelected ? EXCHANGE_CONFIG.offerLevel.selectedBg : EXCHANGE_CONFIG.offerLevel.hoverBg,
-            disabled && "opacity-50 cursor-not-allowed"
+            disabled && "opacity-50 cursor-not-allowed",
+            hasUserOrder && "cursor-default"
           )}
         >
           <div className={cn("flex shrink-0", EXCHANGE_CONFIG.offers.avatarSpacing)}>
@@ -885,6 +933,28 @@ function OfferLevel({
             </div>
           </div>
         </button>
+
+        {/* Cancel button for user's own order */}
+        {hasUserOrder && userOrder && (
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              setCancelingOrderId(userOrder.order_id);
+              await onCancelOrder(userOrder.order_id);
+              setCancelingOrderId(null);
+            }}
+            disabled={cancelingOrderId === userOrder.order_id}
+            className="absolute right-12 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
+            title="Cancel your order"
+          >
+            {cancelingOrderId === userOrder.order_id ? (
+              <span className="text-xs">...</span>
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </button>
+        )}
 
         {hasMultipleOrders && (
           <button
@@ -970,7 +1040,7 @@ function OfferLevel({
                         setCancelingOrderId(null);
                       }}
                       disabled={cancelingOrderId === order.order_id}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
                       title="Cancel order"
                     >
                       {cancelingOrderId === order.order_id ? (
