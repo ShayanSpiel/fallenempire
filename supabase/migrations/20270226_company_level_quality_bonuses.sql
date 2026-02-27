@@ -155,7 +155,7 @@ BEGIN
     -- Get the quality ID for this tier
     SELECT id INTO v_quality_id
     FROM resource_qualities
-    WHERE tier = v_quality_tier
+    WHERE quality_level = v_quality_tier
     LIMIT 1;
 
     -- If quality not found, fallback to common

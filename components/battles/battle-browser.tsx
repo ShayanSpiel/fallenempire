@@ -39,6 +39,7 @@ export type BattleViewModel = {
   current_defense: number;
   initial_defense: number;
   custom_name: string | null;
+  province_name: string | null;
   attacker?: { id: string; name: string; slug: string; color?: string | null; logo_url?: string | null } | null;
   defender?: { id: string; name: string; slug: string; color?: string | null; logo_url?: string | null } | null;
 };
@@ -117,7 +118,7 @@ function BattleCard({ data }: { data: BattleViewModel }) {
   const defenderAvatarUrl = data.defender?.logo_url || (data.defender ? buildCommunityAvatarUrl(data.defender, `defender-${data.id}`) : '');
   const attackerDisplayName = data.attacker?.name ?? "Attacker";
   const defenderDisplayName = data.defender?.name ?? "Defender";
-  const regionName = data.custom_name || `#${data.target_hex_id}`;
+  const regionName = data.custom_name || data.province_name || `#${data.target_hex_id}`;
 
   return (
     <Card variant="default" className="rounded-xl group relative flex flex-col gap-5 p-5">
@@ -215,6 +216,7 @@ export function BattleBrowser({
       current_defense: battle.current_defense,
       initial_defense: battle.initial_defense,
       custom_name: battle.custom_name,
+      province_name: battle.province_name,
       attacker: battle.attacker,
       defender: battle.defender,
     }));

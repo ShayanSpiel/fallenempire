@@ -362,7 +362,8 @@ export function StatsDrawer({
           const locationData = await locationResponse.json()
           if (locationData && locationData.has_location) {
             setUserCurrentHex(locationData.hex_id || null)
-            const displayName = locationData.custom_name || locationData.province_name || locationData.hex_id || "Unknown"
+            // Use display_name as SINGLE SOURCE OF TRUTH
+            const displayName = locationData.display_name || locationData.custom_name || locationData.province_name || locationData.hex_id || "Unknown"
             setUserCurrentLocationName(displayName)
           }
         }

@@ -31,6 +31,7 @@ import { RegionName } from "@/components/ui/region-name";
 import { CompanyUpgradeDialog } from "@/components/economy/company-upgrade-dialog";
 import { cn } from "@/lib/utils";
 import { getBreadIcon, getQualityName } from "@/components/ui/food-quality-icon";
+import { getWeaponIcon } from "@/components/ui/weapon-quality-icon";
 
 interface Employee {
   id: string;
@@ -365,6 +366,8 @@ export function CompanyDetailsSheet({
                             ? "✓"
                             : company.company_type_key === "bakery"
                             ? getBreadIcon(toLevel)
+                            : company.company_type_key === "smithy"
+                            ? getWeaponIcon(toLevel)
                             : "⬆"
                           }
                         </div>
@@ -387,7 +390,7 @@ export function CompanyDetailsSheet({
 
                         {/* Benefits */}
                         <div className="text-[9px] text-center text-muted-foreground leading-tight">
-                          {company.company_type_key === "bakery"
+                          {company.company_type_key === "bakery" || company.company_type_key === "smithy"
                             ? getQualityName(toLevel)
                             : "Quality"
                           }

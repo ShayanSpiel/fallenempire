@@ -31,6 +31,8 @@ import {
 import { toast } from "sonner";
 import { showErrorToast, showTravelRequiredToast } from "@/lib/toast-utils";
 import { getCompanyIcon } from "@/lib/company-config";
+import { getWeaponIcon, getQualityName } from "@/components/ui/weapon-quality-icon";
+import { getBreadIcon } from "@/components/ui/food-quality-icon";
 import { CompanyDetailsSheet } from "@/components/economy/company-details-sheet";
 import { DailyWorkSection } from "@/components/economy/daily-work-section";
 import { CreateCompanyDialog } from "@/components/economy/create-company-dialog";
@@ -123,10 +125,30 @@ export function VenturesView({ userId }: VenturesViewProps) {
     });
 
     if (result.success) {
+      // Format production details for managers
+      let description = "";
+      if (result.work_type === "manager" && result.outputs_produced) {
+        const outputs = Object.entries(result.outputs_produced);
+        if (outputs.length > 0) {
+          const productionDetails = outputs.map(([resourceKey, output]) => {
+            const icon = resourceKey === "weapon"
+              ? getWeaponIcon(output.quality_level)
+              : resourceKey === "food"
+              ? getBreadIcon(output.quality_level)
+              : "📦";
+            const qualityName = getQualityName(output.quality_level);
+            return `${output.base_quantity}x ${qualityName} ${resourceKey} ${icon}`;
+          }).join(", ");
+          description = `Produced: ${productionDetails}`;
+        } else {
+          description = "Production completed as manager";
+        }
+      } else {
+        description = `Work completed. Earned wage: ${result.wage_earned || 0}`;
+      }
+
       toast("Work Complete", {
-        description: result.work_type === "manager"
-          ? "Production completed as manager"
-          : `Work completed. Earned wage: ${result.wage_earned || 0}`,
+        description,
       });
 
       // Reload data

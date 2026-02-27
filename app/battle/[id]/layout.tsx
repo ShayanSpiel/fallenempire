@@ -22,13 +22,13 @@ export async function generateMetadata({
   const { data: region } = targetHexId
     ? await supabase
         .from("world_regions")
-        .select("custom_name")
+        .select("custom_name, province_name")
         .eq("hex_id", targetHexId)
         .maybeSingle()
     : { data: null }
 
   const fallbackLabel = targetHexId ? `#${targetHexId}` : "Unknown Location";
-  const regionLabel = region?.custom_name || fallbackLabel;
+  const regionLabel = region?.custom_name || region?.province_name || fallbackLabel;
 
   return {
     title: targetHexId ? `Battle of ${regionLabel}` : "Battle",

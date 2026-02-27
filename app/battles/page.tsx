@@ -16,21 +16,21 @@ function resolveRegionName(customName?: string | null, provinceName?: string | n
 }
 
 // Hydrate battles with region names from world_regions
-async function hydrateBattlesWithRegionNames<T extends { target_hex_id: string; custom_name: string | null }>(
+async function hydrateBattlesWithRegionNames<T extends { target_hex_id: string; custom_name: string | null; province_name?: string | null }>(
   supabase: SupabaseClient,
   items: T[]
 ): Promise<T[]> {
-  const missingHexIds = items
-    .filter((item) => !item.custom_name?.trim())
+  const allHexIds = items
     .map((item) => item.target_hex_id?.trim())
     .filter((hexId): hexId is string => Boolean(hexId));
 
-  if (missingHexIds.length === 0) return items;
+  if (allHexIds.length === 0) return items;
 
+  // Use display_name - SINGLE SOURCE OF TRUTH
   const { data: regions, error } = await supabase
     .from("world_regions")
-    .select("hex_id, custom_name, province_name")
-    .in("hex_id", missingHexIds);
+    .select("hex_id, display_name")
+    .in("hex_id", allHexIds);
 
   if (error) {
     console.error("Error fetching region names:", error);
@@ -40,17 +40,18 @@ async function hydrateBattlesWithRegionNames<T extends { target_hex_id: string; 
   const regionByHexId = new Map(
     (regions || []).map((region) => [
       region.hex_id,
-      resolveRegionName(region.custom_name, region.province_name),
+      region.display_name,
     ])
   );
 
   return items.map((item) => {
-    if (item.custom_name?.trim()) return item;
     const hexId = item.target_hex_id?.trim();
     if (!hexId) return item;
+    const displayName = regionByHexId.get(hexId);
     return {
       ...item,
-      custom_name: regionByHexId.get(hexId) ?? null,
+      custom_name: displayName ?? `#${hexId}`,
+      province_name: null,
     };
   });
 }
@@ -84,8 +85,8 @@ export default async function BattlesPage() {
     `)
     .order("created_at", { ascending: false });
 
-  // Add custom_name field initialized to null for hydration
-  const battlesWithField = (battles || []).map(b => ({ ...b, custom_name: null }));
+  // Add custom_name and province_name fields initialized to null for hydration
+  const battlesWithField = (battles || []).map(b => ({ ...b, custom_name: null, province_name: null }));
 
   const { data: communities } = await supabase
     .from("communities")

@@ -15,6 +15,8 @@ import { getCurrencyDisplayInfo, type CommunityCurrency } from "@/lib/currency-d
 import type { UserEmployment } from "@/lib/types/companies";
 import { MARKET_TABLE_CONFIG, JOB_TABLE_COLUMNS } from "./market-config";
 import type { BaseTabProps, MarketListing } from "./types";
+import { getWeaponIcon, getQualityName } from "@/components/ui/weapon-quality-icon";
+import { getBreadIcon } from "@/components/ui/food-quality-icon";
 
 interface JobsTabProps extends BaseTabProps {
   communityCurrencies: CommunityCurrency[];
@@ -101,10 +103,30 @@ export function JobsTab({ selectedCommunities, communityCurrencies }: JobsTabPro
         });
 
         if (result.success) {
+          // Format production details for managers
+          let description = "";
+          if (result.work_type === "manager" && result.outputs_produced) {
+            const outputs = Object.entries(result.outputs_produced);
+            if (outputs.length > 0) {
+              const productionDetails = outputs.map(([resourceKey, output]) => {
+                const icon = resourceKey === "weapon"
+                  ? getWeaponIcon(output.quality_level)
+                  : resourceKey === "food"
+                  ? getBreadIcon(output.quality_level)
+                  : "📦";
+                const qualityName = getQualityName(output.quality_level);
+                return `${output.base_quantity}x ${qualityName} ${resourceKey} ${icon}`;
+              }).join(", ");
+              description = `Produced: ${productionDetails}`;
+            } else {
+              description = "Production completed as manager";
+            }
+          } else {
+            description = `Work completed. Earned wage: ${result.wage_earned || 0}`;
+          }
+
           toast("Work Complete", {
-            description: result.work_type === "manager"
-              ? "Production completed as manager"
-              : `Work completed. Earned wage: ${result.wage_earned || 0}`,
+            description,
           });
 
           await loadEmployments();

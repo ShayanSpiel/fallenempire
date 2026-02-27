@@ -55,6 +55,7 @@ import { BattleControls } from "@/components/battle/battle-controls";
 import { BattleInfoModal } from "@/components/battle/battle-info-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { BattleToast } from "@/components/battle/battle-toast";
 import { FloatingDamage } from "@/components/battle/floating-damage";
 import { FloatingTaunt } from "@/components/battle/floating-taunt";
@@ -62,6 +63,8 @@ import { FloatingRage } from "@/components/battle/floating-rage";
 import { FloatingAdrenalineRage } from "@/components/battle/floating-adrenaline-rage";
 import { StatBar } from "@/components/battle/stat-bar";
 import { AdrenalineBar } from "@/components/battle/adrenaline-bar";
+import { WeaponSelectorInline } from "@/components/battle/weapon-selector-inline";
+import { WeaponQualityIcon, getWeaponDamageBonusPercent } from "@/components/ui/weapon-quality-icon";
 
 // Adrenaline system
 import type { AdrenalineConfig, AdrenalineState } from "@/lib/battle-mechanics/types";
@@ -99,6 +102,11 @@ export default function BattlePage() {
   const [isBombing, setIsBombing] = useState(false);
   const [userRage, setUserRage] = useState(0);
   const [userFocus, setUserFocus] = useState(50);
+
+  // Weapon State
+  const [weaponInventory, setWeaponInventory] = useState<Array<{ id: string; quality_tier: number; quantity: number }>>([]);
+  const [selectedWeaponQuality, setSelectedWeaponQuality] = useState<number | null>(null);
+  const [selectedWeaponId, setSelectedWeaponId] = useState<string | null>(null);
 
   // Refs
   const resolvingRef = useRef(false);
@@ -501,12 +509,45 @@ export default function BattlePage() {
                   setUserSide(determinedSide);
                   setUserRole(determinedRole);
                 }
+
+                // Load weapon inventory
+                await loadWeaponInventory(profile.id);
             }
         }
       } catch (err) {
         console.error("Error loading battle:", err);
       } finally {
         if (mounted) setLoading(false);
+      }
+    };
+
+    const loadWeaponInventory = async (userId: string) => {
+      try {
+        const { data: weaponResource } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("key", "weapon")
+          .single();
+
+        if (!weaponResource) return;
+
+        const { data: inventory } = await supabase
+          .from("user_inventory")
+          .select("id, quality_id, quantity, resource_qualities!inner(quality_level)")
+          .eq("user_id", userId)
+          .eq("resource_id", weaponResource.id)
+          .gt("quantity", 0);
+
+        if (inventory && mounted) {
+          const weapons = inventory.map((item: any) => ({
+            id: item.id,
+            quality_tier: item.resource_qualities?.quality_level || 1,
+            quantity: item.quantity,
+          }));
+          setWeaponInventory(weapons);
+        }
+      } catch (err) {
+        console.error("Error loading weapon inventory:", err);
       }
     };
 
@@ -520,72 +561,31 @@ export default function BattlePage() {
 
         const incomingBattle = payload.new as BattleState;
 
-        // Check if this is a realtime echo of our own recent attack
-        // If the defense matches what we just set, skip the update to prevent double animations
-        const isOwnRecentAttack =
-          lastOwnAttackDefenseRef.current !== null &&
-          incomingBattle.current_defense === lastOwnAttackDefenseRef.current;
-
-        // Smart reconciliation: merge with current state intelligently
-        setBattle((currentBattle) => {
-          if (!currentBattle) return incomingBattle;
-
-          // Skip update if this is our own recent attack (prevents duplicate animations)
-          if (isOwnRecentAttack) {
-            return currentBattle;
-          }
-
-          // If we have pending attacks, be conservative about overwriting optimistic updates
-          // Only update if the incoming data is significantly different (status change, major defense change)
-          if (pendingAttacksRef.current > 0) {
-            // Status changed (battle ended) - always accept
-            if (currentBattle.status !== incomingBattle.status) {
-              return incomingBattle;
-            }
-
-            // Defense changed by more than our typical damage range - accept update
-            const defenseDiff = Math.abs(currentBattle.current_defense - incomingBattle.current_defense);
-            if (defenseDiff > 100000) {
-              // Large change, likely from other players
-              return incomingBattle;
-            }
-
-            // Otherwise, keep our optimistic state for now
-            // (API response will sync it properly)
-            return currentBattle;
-          }
-
-          // No pending updates - safely merge
-          return incomingBattle;
-        });
+        // Always accept realtime updates - no optimistic state management
+        setBattle(incomingBattle);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "battle_logs", filter: `battle_id=eq.${id}` }, (payload: any) => {
           if (!mounted) return;
           const normalizedLog = normalizeBattleLog(payload.new as RawBattleLogEntry);
 
-          // Filter out own attacks to prevent duplicate animations
-          // (we already show optimistic animations on attack)
-          const isOwnAction = normalizedLog.actor_id === currentUser?.id;
+          // Show visual effects for ALL actions (no more optimistic updates)
+          triggerHeroBump(normalizedLog.side, HERO_BUMP_DURATION);
+          triggerScoreBump(SCORE_BUMP_DURATION);
 
-          if (!isOwnAction) {
-            // Only show visual effects for other players' actions
-            triggerHeroBump(normalizedLog.side, HERO_BUMP_DURATION);
-            triggerScoreBump(SCORE_BUMP_DURATION);
+          // Pass result to floating damage animation
+          const result = normalizedLog.result || "HIT";
+          spawnFloatingHit(normalizedLog.side, normalizedLog.damage, result);
 
-            // Pass result to floating damage animation
-            const result = normalizedLog.result || "HIT";
-            spawnFloatingHit(normalizedLog.side, normalizedLog.damage, result);
-
-            if (normalizedLog.side === "defender") {
-                setDefenderLogs((prev) => [...prev, normalizedLog].slice(-6));
-                scheduleLogRemoval(setDefenderLogs, normalizedLog.id);
-            } else {
-                setAttackerLogs((prev) => [normalizedLog, ...prev].slice(0, 6));
-                scheduleLogRemoval(setAttackerLogs, normalizedLog.id);
-            }
+          // Add to toast logs
+          if (normalizedLog.side === "defender") {
+              setDefenderLogs((prev) => [...prev, normalizedLog].slice(-6));
+              scheduleLogRemoval(setDefenderLogs, normalizedLog.id);
+          } else {
+              setAttackerLogs((prev) => [normalizedLog, ...prev].slice(0, 6));
+              scheduleLogRemoval(setAttackerLogs, normalizedLog.id);
           }
 
-          // Always ingest for hero tracking (even own actions)
+          // Always ingest for hero tracking
           ingestLog(normalizedLog);
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "battle_taunts", filter: `battle_id=eq.${id}` }, (payload: any) => {
@@ -659,7 +659,7 @@ export default function BattlePage() {
       }
     } else if (isAttackerVictory(battle.status)) {
       setIsFinished(true);
-      setFinalStatusText(`${attackerComm?.name || "Attackers"} Conquered #${battle.target_hex_id}!`);
+      setFinalStatusText(`${attackerComm?.name || "Attackers"} Conquered ${regionLabel || `#${battle.target_hex_id}`}!`);
       // Update battle participant stats and awards
       updateBattleParticipantStats();
       awardBattleHeroMedals();
@@ -826,6 +826,8 @@ export default function BattlePage() {
         body: JSON.stringify({
           battleId: battle.id,
           adrenalineBonus,
+          weaponQuality: selectedWeaponQuality,
+          weaponInventoryId: selectedWeaponId,
         }),
         signal: abortController.signal,
       });
@@ -842,15 +844,14 @@ export default function BattlePage() {
       // ========================================
       const result = payload.result;
       const actualDamage = payload.damage ?? 0;
+      const hit = payload.hit ?? false;
 
-      // Update battle state from backend
+      // Update battle state from backend - NO optimistic updates
       if (
         typeof payload.current_defense === "number" &&
         typeof payload.attacker_score === "number" &&
         typeof payload.defender_score === "number"
       ) {
-        // Track this state so realtime won't duplicate animations
-        lastOwnAttackDefenseRef.current = payload.current_defense;
         setBattle((prev) =>
           prev
             ? {
@@ -880,25 +881,38 @@ export default function BattlePage() {
       }
       if (typeof payload.focus === "number") setUserFocus(payload.focus);
 
-      // Show visual feedback based on actual result
-      triggerHeroBump(userSide, HERO_BUMP_DURATION);
-      triggerScoreBump(SCORE_BUMP_DURATION);
-      spawnFloatingHit(userSide, actualDamage, result);
+      // Handle weapon consumption (only if hit)
+      if (selectedWeaponQuality && selectedWeaponId && hit) {
+        // Update weapon inventory and check if we need to clear selection
+        let shouldClearSelection = false;
+        setWeaponInventory((prev) => {
+          const updated = prev
+            .map((weapon) => {
+              if (weapon.id === selectedWeaponId) {
+                const newQuantity = weapon.quantity - 1;
+                if (newQuantity === 0) {
+                  shouldClearSelection = true;
+                }
+                return {
+                  ...weapon,
+                  quantity: newQuantity,
+                };
+              }
+              return weapon;
+            })
+            .filter((weapon) => weapon.quantity > 0);
+          return updated;
+        });
 
-      // Track hero damage with actual result
-      if (result === "HIT" || result === "CRITICAL") {
-        const battleLog: BattleLog = {
-          id: `${Date.now()}`,
-          user: currentUser.username || "You",
-          user_avatar: currentUser.avatar_url,
-          damage: actualDamage,
-          side: userSide,
-          actor_id: currentUser.id,
-          result,
-        };
-        ingestHeroLog(battleLog);
-        updateHeroLeaders();
+        // Only clear selection if quantity reached 0
+        if (shouldClearSelection) {
+          setSelectedWeaponQuality(null);
+          setSelectedWeaponId(null);
+        }
       }
+
+      // NO OPTIMISTIC ANIMATIONS - Let backend + realtime subscription handle ALL animations
+      // This prevents double animations completely
 
       // Show combat result
       if (result) {
@@ -978,7 +992,7 @@ export default function BattlePage() {
         lastOwnAttackDefenseRef.current = null;
       }, 2000);
     }
-  }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage]);
+  }, [battle, isFinished, currentUser, userSide, setEnergy, adrenalineState.bonusRage, selectedWeaponQuality, selectedWeaponId, ingestHeroLog, updateHeroLeaders, triggerHeroBump, triggerScoreBump, spawnFloatingHit, spawnFloatingRage]);
 
   // Wrapper to prevent double-clicks at the UI level by checking ref synchronously
   const handleFightClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -1403,27 +1417,35 @@ export default function BattlePage() {
               </Button>
             </div>
           ) : (
-            <div className={cn("flex flex-wrap items-center justify-center gap-2 px-2 py-2 rounded-xl backdrop-blur-xl w-full max-w-[min(400px,calc(100vw-16px))] md:max-w-[min(600px,calc(100vw-32px))] border border-white/20", BATTLE_THEME.ui.buttons.main.bg, BATTLE_THEME.ui.buttons.main.shadow)}>
+            <div className={cn("flex items-center justify-center gap-2 px-2 py-2 rounded-xl backdrop-blur-xl w-full max-w-[min(400px,calc(100vw-16px))] md:max-w-[min(600px,calc(100vw-32px))] border border-white/20", BATTLE_THEME.ui.buttons.main.bg, BATTLE_THEME.ui.buttons.main.shadow)}>
               {/* Left side buttons */}
-              <Button size="icon" disabled className={cn("rounded-2xl h-12 w-12 md:h-16 md:w-16 flex-shrink-0 relative group text-2xl md:text-3xl", BATTLE_THEME.ui.buttons.bomb.bg, BATTLE_THEME.ui.buttons.bomb.border, BATTLE_THEME.ui.buttons.bomb.disabled)}>
-                💣
-                <span className={cn("absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none", BATTLE_THEME.ui.buttons.comingSoonTooltip.bg, BATTLE_THEME.ui.buttons.comingSoonTooltip.text, BATTLE_THEME.ui.buttons.comingSoonTooltip.size, BATTLE_THEME.ui.buttons.comingSoonTooltip.padding, BATTLE_THEME.ui.buttons.comingSoonTooltip.rounded)}>Coming Soon</span>
-              </Button>
+              <WeaponSelectorInline
+                weaponInventory={weaponInventory}
+                selectedWeaponQuality={selectedWeaponQuality}
+                onSelectWeapon={(weaponId, quality) => {
+                  setSelectedWeaponId(weaponId);
+                  setSelectedWeaponQuality(quality);
+                }}
+                onClearWeapon={() => {
+                  setSelectedWeaponId(null);
+                  setSelectedWeaponQuality(null);
+                }}
+              />
               <Button size="icon" disabled className={cn("rounded-2xl h-12 w-12 md:h-16 md:w-16 flex-shrink-0 relative group text-2xl md:text-3xl", BATTLE_THEME.ui.buttons.food.bg, BATTLE_THEME.ui.buttons.food.border, BATTLE_THEME.ui.buttons.food.disabled)}>
                 🍖
                 <span className={cn("absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none", BATTLE_THEME.ui.buttons.comingSoonTooltip.bg, BATTLE_THEME.ui.buttons.comingSoonTooltip.text, BATTLE_THEME.ui.buttons.comingSoonTooltip.size, BATTLE_THEME.ui.buttons.comingSoonTooltip.padding, BATTLE_THEME.ui.buttons.comingSoonTooltip.rounded)}>Coming Soon</span>
               </Button>
 
-	              {/* Center FIGHT button - wider with more spacing */}
-	              <div className="mx-2 md:mx-4">
-	                <Button
-	                  onClick={handleFightClick}
-	                  disabled={fightButtonLoading || isFinished || (currentUser?.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST}
-	                  className={cn("relative overflow-visible text-lg font-black uppercase tracking-widest h-12 md:h-16 rounded-2xl px-8 md:px-12 md:min-w-[180px] active:border-b-0 active:translate-y-1 transition-all min-w-fit border border-b-4 border-amber-900/60 shadow-lg shadow-amber-900/30", BATTLE_THEME.ui.buttons.fight.bg, BATTLE_THEME.ui.buttons.fight.text, BATTLE_THEME.ui.buttons.fight.hover)}
-	                >
-	                  {fightButtonLoading ? <Loader2 className="animate-spin h-5 md:h-8 w-5 md:w-8" /> : "FIGHT"}
-	                </Button>
-	              </div>
+              {/* Center FIGHT button - wider with more spacing */}
+              <div className="mx-2 md:mx-4 flex-shrink-0">
+                <Button
+                  onClick={handleFightClick}
+                  disabled={fightButtonLoading || isFinished || (currentUser?.energy ?? 0) < BATTLE_ATTACK_ENERGY_COST}
+                  className={cn("relative overflow-visible text-lg font-black uppercase tracking-widest h-12 md:h-16 rounded-2xl px-8 md:px-12 md:min-w-[180px] active:border-b-0 active:translate-y-1 transition-all border border-b-4 border-amber-900/60 shadow-lg shadow-amber-900/30", BATTLE_THEME.ui.buttons.fight.bg, BATTLE_THEME.ui.buttons.fight.text, BATTLE_THEME.ui.buttons.fight.hover)}
+                >
+                  {fightButtonLoading ? <Loader2 className="animate-spin h-5 md:h-8 w-5 md:w-8" /> : "FIGHT"}
+                </Button>
+              </div>
 
               {/* Right side buttons - potion and taunt */}
               <Button size="icon" disabled className={cn("rounded-2xl h-12 w-12 md:h-16 md:w-16 flex-shrink-0 relative group text-2xl md:text-3xl", BATTLE_THEME.ui.buttons.potion1.bg, BATTLE_THEME.ui.buttons.potion1.border, BATTLE_THEME.ui.buttons.potion1.disabled)}>

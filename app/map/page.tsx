@@ -117,7 +117,7 @@ export default function MapPage() {
     // Add timestamp to bust any caching
     const { data: regions } = await supabase
       .from("world_regions")
-      .select("hex_id, custom_name, province_name, owner_community_id, fortification_level, resource_yield")
+      .select("hex_id, custom_name, province_name, display_name, owner_community_id, fortification_level, resource_yield")
       .limit(10000); // Force fresh query
 
     const map: RegionOwnersMap = {};

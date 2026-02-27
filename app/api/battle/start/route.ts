@@ -64,11 +64,11 @@ export async function POST(request: Request) {
     // Get region name for transaction description
     const { data: regionData } = await supabase
       .from("region_owners")
-      .select("custom_name")
+      .select("custom_name, province_name")
       .eq("hex_id", targetHexId)
       .maybeSingle();
 
-    const regionName = regionData?.custom_name || `Region ${targetHexId}`;
+    const regionName = regionData?.custom_name || regionData?.province_name || `Region ${targetHexId}`;
 
     // Deduct gold cost using transaction service (single source of truth)
     const goldCost = 10;

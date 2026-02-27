@@ -110,7 +110,7 @@ export default function PrototypeMapPage() {
     // Fetch regions without the communities join to avoid RLS bottleneck
     const { data: regions } = await supabase
       .from("world_regions")
-      .select("hex_id, custom_name, owner_community_id, fortification_level, resource_yield");
+      .select("hex_id, custom_name, province_name, owner_community_id, fortification_level, resource_yield");
 
     const map: RegionOwnersMap = {};
 

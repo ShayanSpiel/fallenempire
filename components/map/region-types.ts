@@ -9,6 +9,7 @@ export type RegionOwnerRow = {
   hex_id: string;
   custom_name?: string | null;
   province_name?: string | null;
+  display_name?: string | null;
   owner_community_id: string | null;
   fortification_level: number;
   resource_yield: number;

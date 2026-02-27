@@ -31,6 +31,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const battleId = typeof body?.battleId === "string" ? body.battleId : null;
     const adrenalineBonus = typeof body?.adrenalineBonus === "number" ? body.adrenalineBonus : 0;
+    const weaponQuality = typeof body?.weaponQuality === "number" ? body.weaponQuality : null;
+    const weaponInventoryId = typeof body?.weaponInventoryId === "string" ? body.weaponInventoryId : null;
 
     if (!battleId) {
       return NextResponse.json(
@@ -213,7 +215,21 @@ export async function POST(request: Request) {
 
       // Calculate damage with rank bonus
       const rankMultiplier = getRankDamageMultiplier(militaryRank);
-      const baseDamage = 100 * strength * rankMultiplier;
+      let baseDamage = 100 * strength * rankMultiplier;
+
+      // Apply weapon damage bonus
+      if (weaponQuality && weaponQuality >= 1 && weaponQuality <= 5) {
+        const weaponBonuses: Record<number, number> = {
+          1: 0.20, // +20%
+          2: 0.30, // +30%
+          3: 0.40, // +40%
+          4: 0.50, // +50%
+          5: 0.60, // +60%
+        };
+        const weaponBonus = weaponBonuses[weaponQuality] || 0;
+        baseDamage = baseDamage * (1 + weaponBonus);
+      }
+
       damage = Math.floor(critical ? calculateCriticalDamage(baseDamage, config) : baseDamage);
 
       result = critical ? "CRITICAL" : "HIT";
@@ -299,6 +315,34 @@ export async function POST(request: Request) {
 
     if (energyError) {
       return NextResponse.json({ error: energyError.message }, { status: 400 });
+    }
+
+    // Consume weapon if used
+    if (weaponInventoryId && hit) {
+      // Fetch current weapon inventory item
+      const { data: weaponItem } = await supabaseAdmin
+        .from("user_inventory")
+        .select("quantity")
+        .eq("id", weaponInventoryId)
+        .single();
+
+      if (weaponItem && weaponItem.quantity > 0) {
+        const newQuantity = weaponItem.quantity - 1;
+
+        if (newQuantity > 0) {
+          // Update quantity
+          await supabaseAdmin
+            .from("user_inventory")
+            .update({ quantity: newQuantity })
+            .eq("id", weaponInventoryId);
+        } else {
+          // Delete item if quantity is 0
+          await supabaseAdmin
+            .from("user_inventory")
+            .delete()
+            .eq("id", weaponInventoryId);
+        }
+      }
     }
 
     // Log action to battle_action_log (use effective rage if adrenaline was applied)

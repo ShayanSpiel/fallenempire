@@ -263,7 +263,8 @@ export async function loadProfileViewModel(
   // Add location name to profile
   const locationData = locationRes.data as any;
   if (locationData?.has_location) {
-    (profile as any).current_location_name = locationData.custom_name || locationData.province_name || locationData.hex_id;
+    // Use display_name as SINGLE SOURCE OF TRUTH
+    (profile as any).current_location_name = locationData.display_name || locationData.custom_name || locationData.province_name || locationData.hex_id;
   }
 
   const isOwnProfile = viewerId ? viewerId === profile.id : false;

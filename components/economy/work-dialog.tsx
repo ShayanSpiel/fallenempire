@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import type { UserCompany, UserEmployment, ProductionRecipe } from "@/lib/types/companies";
 import { getRecipesByIds, performWork } from "@/app/actions/companies";
 import { toast } from "sonner";
+import { getWeaponIcon, getQualityName } from "@/components/ui/weapon-quality-icon";
+import { getBreadIcon } from "@/components/ui/food-quality-icon";
 import { CurrencyDisplayCompact } from "@/components/ui/currency-display";
 
 interface WorkDialogProps {
@@ -82,10 +84,30 @@ export function WorkDialog({
     });
 
     if (result.success) {
+      // Format production details for managers
+      let description = "";
+      if (companyType === "own" && result.outputs_produced) {
+        const outputs = Object.entries(result.outputs_produced);
+        if (outputs.length > 0) {
+          const productionDetails = outputs.map(([resourceKey, output]) => {
+            const icon = resourceKey === "weapon"
+              ? getWeaponIcon(output.quality_level)
+              : resourceKey === "food"
+              ? getBreadIcon(output.quality_level)
+              : "📦";
+            const qualityName = getQualityName(output.quality_level);
+            return `${output.base_quantity}x ${qualityName} ${resourceKey} ${icon}`;
+          }).join(", ");
+          description = `Produced: ${productionDetails}`;
+        } else {
+          description = "Production added to your inventory.";
+        }
+      } else {
+        description = `You earned ${result.wage_earned || 0} community coins.`;
+      }
+
       toast.success("Work Complete!", {
-        description: companyType === "own"
-          ? "Production added to your inventory."
-          : `You earned ${result.wage_earned || 0} community coins.`,
+        description,
       });
       onWorkComplete();
     } else {

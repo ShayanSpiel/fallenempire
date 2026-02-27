@@ -7,6 +7,7 @@ import { getQualityStars } from "@/lib/economy-config";
 import { getResourceIconComponent } from "@/lib/economy/resource-icons";
 import { cn } from "@/lib/utils";
 import { getBreadIcon } from "@/components/ui/food-quality-icon";
+import { getWeaponIcon } from "@/components/ui/weapon-quality-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -92,6 +93,8 @@ export function InventoryItemCard({ item, communityId }: InventoryItemCardProps)
       >
         {item.resource_key === "food" ? (
           <span className="text-3xl">{getBreadIcon(item.quality_level)}</span>
+        ) : item.resource_key === "weapon" ? (
+          <span className="text-3xl">{getWeaponIcon(item.quality_level)}</span>
         ) : (
           <Icon className="h-8 w-8" />
         )}

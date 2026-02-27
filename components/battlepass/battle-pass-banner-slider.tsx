@@ -97,7 +97,10 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
   return (
     <div className="rounded-xl border border-amber-300/50 dark:border-amber-600/40 bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/80 dark:from-amber-950/40 dark:via-amber-900/30 dark:to-yellow-950/40 shadow-sm overflow-hidden">
       {/* Collapsed Header */}
-      <div className="p-3 flex items-center gap-3 relative z-10">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-3 flex items-center gap-3 relative z-10 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+      >
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-400/80 dark:bg-amber-500/70 border border-amber-500/40 dark:border-amber-400/30 shadow-sm flex-shrink-0">
           <Leaf className="w-4 h-4 text-amber-900 dark:text-amber-100" />
         </div>
@@ -117,6 +120,7 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
               </div>
               <Link
                 href="/battlepass"
+                onClick={(e) => e.stopPropagation()}
                 className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium transition-colors"
               >
                 View All
@@ -138,30 +142,22 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
 
           {/* Unclaimed Rewards Indicator - Only show when collapsed */}
           {!isExpanded && hasUnclaimedRewards && (
-            <button
-              onClick={() => setIsExpanded(true)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-400/60 dark:bg-amber-500/50 border border-amber-500/50 dark:border-amber-400/40 hover:bg-amber-400/80 dark:hover:bg-amber-500/70 transition-all animate-pulse"
-            >
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-400/60 dark:bg-amber-500/50 border border-amber-500/50 dark:border-amber-400/40 animate-pulse">
               <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
                 Rewards Ready!
               </span>
-            </button>
+            </div>
           )}
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="h-7 w-7 p-0 flex-shrink-0 hover:bg-amber-400/20 dark:hover:bg-amber-500/20 transition-colors"
-        >
+        <div className="h-7 w-7 flex items-center justify-center flex-shrink-0">
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" />
           ) : (
             <ChevronDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />
           )}
-        </Button>
-      </div>
+        </div>
+      </button>
 
       {/* Expanded Content - Slider */}
       <AnimatePresence>

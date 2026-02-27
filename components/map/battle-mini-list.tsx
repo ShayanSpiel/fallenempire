@@ -291,7 +291,12 @@ export function BattleMiniList({ battles, regionOwners, compact = false }: Battl
           >
             {activeBattles.map((battle) => {
               const region = regionOwners[battle.target_hex_id];
-              const regionLabel = region?.custom_name?.trim() || `#${battle.target_hex_id}`;
+              // Use display_name as SINGLE SOURCE OF TRUTH
+              const regionLabel =
+                region?.display_name ||
+                region?.custom_name?.trim() ||
+                region?.province_name?.trim() ||
+                `#${battle.target_hex_id}`;
               return (
                 <BattleMiniCard
                   key={battle.id}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trophy, Clock, ArrowLeft, Check } from "lucide-react";
+import { Leaf, Clock, ArrowLeft, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +87,7 @@ export default function BattlePassPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Trophy className="w-16 h-16 text-gray-400 mx-auto" />
+          <Leaf className="w-16 h-16 text-amber-400 mx-auto" />
           <p className="text-muted-foreground">Battle Pass unavailable</p>
           <Link href="/feed">
             <Button variant="outline">Back to Feed</Button>
@@ -126,22 +126,24 @@ export default function BattlePassPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm">
+      <div className="sticky top-0 z-50 border-b border-amber-300/30 dark:border-amber-600/30 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:from-amber-950/60 dark:via-amber-900/40 dark:to-amber-950/60">
         <div className="container max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/feed">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hover:bg-amber-100 dark:hover:bg-amber-900/50">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
                 </Button>
               </Link>
 
-              <div className="flex items-center gap-2">
-                <Trophy className="w-6 h-6 text-amber-500" />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/80 dark:bg-amber-500/70 border border-amber-500/40 dark:border-amber-400/30 shadow-sm">
+                  <Leaf className="w-5 h-5 text-amber-900 dark:text-amber-100" />
+                </div>
                 <div>
-                  <h1 className="text-xl font-bold">{season.name}</h1>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <h1 className="text-xl font-bold text-amber-900 dark:text-amber-100">{season.name}</h1>
+                  <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
                     <Clock className="w-3 h-3" />
                     <span>{daysRemaining} days remaining</span>
                   </div>
@@ -150,8 +152,8 @@ export default function BattlePassPage() {
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-muted-foreground">Current Tier</div>
-              <div className="text-2xl font-bold text-amber-500">
+              <div className="text-xs text-amber-700 dark:text-amber-300">Current Tier</div>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                 {progress.current_tier}/{season.total_tiers}
               </div>
             </div>
@@ -159,13 +161,18 @@ export default function BattlePassPage() {
 
           {/* Progress bar */}
           <div className="mt-3 space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
               <span>Tier Progress</span>
               <span className="font-medium">
                 {xpInCurrentTier}/{season.xp_per_tier} XP
               </span>
             </div>
-            <Progress value={progressPercent} className="h-2" />
+            <div className="h-2 bg-amber-200/60 dark:bg-amber-900/50 rounded-full overflow-hidden border border-amber-300/40 dark:border-amber-700/40">
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -174,13 +181,13 @@ export default function BattlePassPage() {
       <div className="container max-w-5xl mx-auto px-4 py-6">
         <div className="space-y-3">
           {/* Header Row */}
-          <div className="grid grid-cols-[80px_1fr_1fr] gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
+          <div className="grid grid-cols-[80px_1fr_1fr] gap-4 text-sm font-medium text-amber-700 dark:text-amber-300 pb-2 border-b border-amber-300/30 dark:border-amber-700/30">
             <div>Tier</div>
             <div>Free Pass</div>
             <div className="flex items-center gap-2">
               Keeper Pass
               {!progress.has_keeper_pass && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400">
                   Coming Soon
                 </Badge>
               )}
@@ -199,16 +206,18 @@ export default function BattlePassPage() {
                   key={tierNum}
                   className={cn(
                     "grid grid-cols-[80px_1fr_1fr] gap-4 p-3 rounded-lg border transition-all",
-                    isUnlocked ? "bg-card" : "bg-muted/30"
+                    isUnlocked
+                      ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/40 dark:border-amber-800/40"
+                      : "bg-muted/30 border-muted-foreground/20"
                   )}
                 >
                   {/* Tier Number */}
                   <div className="flex items-center">
                     <div
                       className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold",
+                        "w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-sm",
                         isUnlocked
-                          ? "bg-amber-500 text-white"
+                          ? "bg-gradient-to-br from-amber-400 to-amber-500 text-white"
                           : "bg-muted text-muted-foreground"
                       )}
                     >
@@ -230,9 +239,9 @@ export default function BattlePassPage() {
                           "flex items-center gap-3 p-2 rounded-lg border transition-all",
                           !isUnlocked && "opacity-40",
                           isRewardClaimed(tierNumber, "free")
-                            ? "bg-green-500/10 border-green-500/30"
+                            ? "bg-green-500/20 border-green-500/50"
                             : isUnlocked
-                            ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 cursor-pointer"
+                            ? "bg-gradient-to-br from-amber-300/70 via-yellow-300/60 to-amber-400/70 dark:from-amber-500/60 dark:via-yellow-500/50 dark:to-amber-600/60 border-amber-400 dark:border-amber-500 hover:border-amber-500 dark:hover:border-amber-400 cursor-pointer shadow-sm"
                             : "border-muted"
                         )}
                       >
@@ -284,9 +293,9 @@ export default function BattlePassPage() {
                           !isUnlocked && "opacity-40",
                           !progress.has_keeper_pass && "cursor-not-allowed",
                           isRewardClaimed(tierNumber, "keeper")
-                            ? "bg-green-500/10 border-green-500/30"
+                            ? "bg-green-500/20 border-green-500/50"
                             : isUnlocked && progress.has_keeper_pass
-                            ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 cursor-pointer"
+                            ? "bg-gradient-to-br from-amber-300/70 via-yellow-300/60 to-amber-400/70 dark:from-amber-500/60 dark:via-yellow-500/50 dark:to-amber-600/60 border-amber-400 dark:border-amber-500 hover:border-amber-500 dark:hover:border-amber-400 cursor-pointer shadow-sm"
                             : "border-muted"
                         )}
                       >
