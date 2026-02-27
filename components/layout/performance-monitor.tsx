@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { initWebVitalsTracking, initLongTaskTracking } from '@/lib/web-vitals';
+import { initWebVitalsTracking } from '@/lib/web-vitals';
 import { preloadHexData } from '@/lib/hex-data-loader';
 
 /**
@@ -13,9 +13,6 @@ export function PerformanceMonitor() {
   useEffect(() => {
     // Initialize Web Vitals tracking
     initWebVitalsTracking();
-
-    // Initialize long task tracking (dev only)
-    initLongTaskTracking();
 
     // Preload hex data in background (non-blocking)
     preloadHexData();

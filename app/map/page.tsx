@@ -114,9 +114,11 @@ export default function MapPage() {
     globalPerformanceMonitor.startNetworkRequest();
 
     // Fetch regions without the communities join to avoid RLS bottleneck
+    // Add timestamp to bust any caching
     const { data: regions } = await supabase
       .from("world_regions")
-      .select("hex_id, custom_name, province_name, owner_community_id, fortification_level, resource_yield");
+      .select("hex_id, custom_name, province_name, owner_community_id, fortification_level, resource_yield")
+      .limit(10000); // Force fresh query
 
     const map: RegionOwnersMap = {};
 
@@ -197,7 +199,7 @@ export default function MapPage() {
 
     if (locationData?.has_location) {
       setUserCurrentHex(locationData.hex_id);
-      setUserCurrentHexName(locationData.custom_name || locationData.hex_id);
+      setUserCurrentHexName(locationData.custom_name);
     }
 
     // Fetch ticket count
@@ -627,10 +629,10 @@ export default function MapPage() {
     async (hexId: string, newName: string) => {
       debug(MAP_LOG_MODULE, "Updating region name", { hexId, newName });
       try {
-        const { error } = await supabase
-          .from("world_regions")
-          .update({ custom_name: newName })
-          .eq("hex_id", hexId);
+        const { error } = await supabase.rpc('update_region_name', {
+          p_hex_id: hexId,
+          p_new_name: newName
+        });
 
         if (error) {
           throw error;
@@ -702,6 +704,7 @@ export default function MapPage() {
           drawerOnUpdateRegionName={handleUpdateRegionName}
           drawerUserRankTier={userRankTier}
           drawerUserId={userId}
+          drawerUserCommunityId={userCommunityId}
           drawerOnTravel={handleTravel}
           drawerUserCurrentHex={userCurrentHex}
           drawerUserCurrentHexName={userCurrentHexName}

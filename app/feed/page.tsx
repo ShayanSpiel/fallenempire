@@ -17,6 +17,7 @@ import {
   COMMUNITY_EVENT_NOTIFICATION_TYPES,
 } from "@/lib/types/notifications";
 import { H1, P } from "@/components/ui/typography";
+import { BattlePassWrapper } from "@/components/battlepass/battle-pass-wrapper";
 
 function normalizeRelation<T extends Record<string, unknown>>(value: T | (T | null)[] | null | undefined) {
   if (Array.isArray(value)) {
@@ -384,35 +385,44 @@ export default async function FeedPage() {
     }));
 
   return (
-    <PageSection
-      sidebarPlacement="left"
-      sidebar={
-        <div className="space-y-6">
-          <MissionSidebarWrapper initialMissions={missions} />
-          <BattleListSidebar battles={battles} />
-          <WorldEventsSidebar events={worldEvents} />
-          <CommunityEventsSidebar events={communityEvents} />
+    <>
+      {/* Battle Pass Banner - Aligned with page content */}
+      <div className="w-full pt-6">
+        <div className="mx-auto w-full px-[var(--layout-horizontal-padding)]" style={{ maxWidth: "var(--layout-max-width)" }}>
+          <BattlePassWrapper />
         </div>
-      }
-    >
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <H1>Social Feed</H1>
-          <P className="max-w-2xl text-muted-foreground/80">
-            Real-time intelligence and social dynamics.
-          </P>
-        </div>
-
-        <FeedTabsWrapper
-          initialPosts={posts}
-          initialHasMore={posts.length >= fetchLimit}
-          viewerProfile={viewerProfile}
-          userCommunities={userCommunities}
-          userCommunityIds={userCommunityIds}
-          followingIds={followingIds}
-        />
       </div>
-    </PageSection>
+
+      <PageSection
+        sidebarPlacement="left"
+        sidebar={
+          <div className="space-y-6">
+            <MissionSidebarWrapper initialMissions={missions} />
+            <BattleListSidebar battles={battles} />
+            <WorldEventsSidebar events={worldEvents} />
+            <CommunityEventsSidebar events={communityEvents} />
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <H1>Social Feed</H1>
+            <P className="max-w-2xl text-muted-foreground/80">
+              Real-time intelligence and social dynamics.
+            </P>
+          </div>
+
+          <FeedTabsWrapper
+            initialPosts={posts}
+            initialHasMore={posts.length >= fetchLimit}
+            viewerProfile={viewerProfile}
+            userCommunities={userCommunities}
+            userCommunityIds={userCommunityIds}
+            followingIds={followingIds}
+          />
+        </div>
+      </PageSection>
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Settings,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import type {
   UserCompany,
@@ -32,6 +33,7 @@ import { showErrorToast, showTravelRequiredToast } from "@/lib/toast-utils";
 import { getCompanyIcon } from "@/lib/company-config";
 import { CompanyDetailsSheet } from "@/components/economy/company-details-sheet";
 import { DailyWorkSection } from "@/components/economy/daily-work-section";
+import { CreateCompanyDialog } from "@/components/economy/create-company-dialog";
 import { cn } from "@/lib/utils";
 import { normalizeEmployments } from "@/lib/company-employment";
 
@@ -47,6 +49,31 @@ export function VenturesView({ userId }: VenturesViewProps) {
   const [workingCompanyId, setWorkingCompanyId] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<UserCompany | null>(null);
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+  const [userCurrentHex, setUserCurrentHex] = useState<string | null>(null);
+  const [userCurrentLocationName, setUserCurrentLocationName] = useState<string | null>(null);
+
+  // Load user's current location
+  useEffect(() => {
+    const loadUserLocation = async () => {
+      try {
+        const response = await fetch("/api/travel");
+        if (response.ok) {
+          const locationData = await response.json();
+          if (locationData?.has_location) {
+            setUserCurrentHex(locationData.hex_id);
+            const displayName =
+              locationData.custom_name ||
+              locationData.province_name ||
+              locationData.hex_id;
+            setUserCurrentLocationName(displayName);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load user location:", error);
+      }
+    };
+    loadUserLocation();
+  }, []);
 
   // Load user's companies
   useEffect(() => {
@@ -160,10 +187,26 @@ export function VenturesView({ userId }: VenturesViewProps) {
 
         {/* My Companies Section */}
         <section className="space-y-4">
-          <H2>
-            <Building2 className="h-5 w-5 text-foreground" />
-            My Companies ({companies.length})
-          </H2>
+          <div className="flex items-center justify-between">
+            <H2>
+              <Building2 className="h-5 w-5 text-foreground" />
+              My Companies ({companies.length})
+            </H2>
+            <CreateCompanyDialog
+              hexId={userCurrentHex || ""}
+              userId={userId}
+              regionName={userCurrentLocationName || undefined}
+              onCompanyCreated={() => {
+                const loadCompanies = async () => {
+                  setIsLoadingCompanies(true);
+                  const data = await getUserCompanies(userId);
+                  setCompanies(data);
+                  setIsLoadingCompanies(false);
+                };
+                loadCompanies();
+              }}
+            />
+          </div>
 
           {isLoadingCompanies ? (
             <div className="space-y-2">
@@ -202,89 +245,100 @@ export function VenturesView({ userId }: VenturesViewProps) {
                   <Card
                     key={company.id}
                     variant="compact"
-                    className="border-border/60 hover:bg-muted/30 transition-colors"
+                    className="border-border/60 hover:border-border/80 hover:bg-muted/20 transition-all"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Company Info */}
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
-                          <IconComponent className="h-5 w-5" />
+                    <div className="flex items-center gap-3">
+                      {/* Icon */}
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
+                        <IconComponent className="h-5 w-5" />
+                      </div>
+
+                      {/* Company Info - Left Section */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-bold text-foreground truncate">
+                          {company.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {company.company_type_name}
+                        </p>
+                      </div>
+
+                      {/* Stats - Fixed Width Columns */}
+                      <div className="flex items-center gap-6 shrink-0">
+                        {/* Level */}
+                        <div className="flex flex-col items-center gap-0.5">
+                          <Badge
+                            variant="default"
+                            className="text-xs px-2 py-0.5 h-fit"
+                          >
+                            Lv{company.level}
+                          </Badge>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-bold text-foreground truncate">
-                            {company.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {company.company_type_name}
-                          </p>
+
+                        {/* Health */}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground w-16">
+                          <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+                          <span>{company.health}%</span>
+                        </div>
+
+                        {/* Location */}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-40 max-w-40">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {company.custom_name ?? "Unknown"}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Level */}
-                      <Badge variant="default" className="text-xs shrink-0">
-                        Lv{company.level}
-                      </Badge>
+                      {/* Actions - Fixed Width */}
+                      <div className="flex items-center gap-2 shrink-0 w-80">
+                        {/* Manage Button */}
+                        <Button
+                          onClick={() => {
+                            setSelectedCompany(company);
+                            setDetailsSheetOpen(true);
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="h-9 px-3 gap-1.5 text-xs font-medium"
+                        >
+                          <Settings className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Manage</span>
+                        </Button>
 
-                      {/* Health */}
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                        <TrendingUp className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{company.health}%</span>
+                        {/* Work as Manager Button */}
+                        <Button
+                          onClick={() => handleWork(
+                            company.id,
+                            company.available_recipes,
+                            true
+                          )}
+                          disabled={!company.can_work_today || isWorking}
+                          className={cn(
+                            "h-9 px-4 gap-2 text-sm font-bold whitespace-nowrap flex-1",
+                            company.can_work_today
+                              ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                              : "bg-muted text-muted-foreground cursor-not-allowed"
+                          )}
+                        >
+                          {isWorking ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Working...</span>
+                            </>
+                          ) : company.can_work_today ? (
+                            <>
+                              <Zap className="h-4 w-4" />
+                              <span>Work as Manager</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Worked Today</span>
+                            </>
+                          )}
+                        </Button>
                       </div>
-
-                      {/* Location */}
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                        <MapPin className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">
-                          {company.custom_name ?? "Unknown region"}
-                        </span>
-                      </div>
-
-                      {/* Manage Button */}
-                      <Button
-                        onClick={() => {
-                          setSelectedCompany(company);
-                          setDetailsSheetOpen(true);
-                        }}
-                        size="sm"
-                        variant="ghost"
-                        className="gap-2 shrink-0"
-                      >
-                        <Settings className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Manage</span>
-                      </Button>
-
-                      {/* Work as Manager Button */}
-                      <Button
-                        onClick={() => handleWork(
-                          company.id,
-                          company.available_recipes,
-                          true
-                        )}
-                        disabled={!company.can_work_today || isWorking}
-                        size="sm"
-                        variant={company.can_work_today ? "default" : "outline"}
-                        className={cn(
-                          "gap-1.5 font-bold transition-all shrink-0",
-                          isWorking && "animate-pulse cursor-wait"
-                        )}
-                      >
-                        {isWorking ? (
-                          <>
-                            <Loader2 className="size-3.5 animate-spin" />
-                            Working...
-                          </>
-                        ) : company.can_work_today ? (
-                          <>
-                            <Zap className="size-3.5" />
-                            Work as Manager
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="size-3.5" />
-                            Worked Today
-                          </>
-                        )}
-                      </Button>
                     </div>
                   </Card>
                 );

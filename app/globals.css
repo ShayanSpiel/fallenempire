@@ -286,7 +286,7 @@
 }
 
 .toast-fade-inout {
-  animation: toastFadeInOut 10.5s ease-in-out forwards;
+  animation: toastFadeInOut 21s ease-in-out forwards;
 }
 
 @keyframes shine {

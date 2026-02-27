@@ -21,11 +21,16 @@ import {
   TrendingUp,
   Briefcase,
   X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getCompanyIcon } from "@/lib/company-config";
+import { getCompanyIcon, getCompanyTypeByKey } from "@/lib/company-config";
 import type { CompanyWithType, UserCompany } from "@/lib/types/companies";
 import { RegionName } from "@/components/ui/region-name";
+import { CompanyUpgradeDialog } from "@/components/economy/company-upgrade-dialog";
+import { cn } from "@/lib/utils";
+import { getBreadIcon, getQualityName } from "@/components/ui/food-quality-icon";
 
 interface Employee {
   id: string;
@@ -76,6 +81,9 @@ export function CompanyDetailsSheet({
     wagePerDayCommunityCoin: 0.01,
   });
   const [creatingJob, setCreatingJob] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [selectedUpgradeLevel, setSelectedUpgradeLevel] = useState<number | null>(null);
+  const [showUpgradeStages, setShowUpgradeStages] = useState(false);
 
   useEffect(() => {
     if (open && company) {
@@ -215,9 +223,46 @@ export function CompanyDetailsSheet({
     }
   };
 
+  const handleUpgradeCompany = async () => {
+    if (!company) return;
+
+    try {
+      const response = await fetch("/api/companies/upgrade", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          company_id: company.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || "Failed to upgrade company");
+        return;
+      }
+
+      const result = await response.json();
+      toast.success(`Company upgraded to level ${result.newLevel}!`);
+
+      // Reload company details
+      await loadCompanyDetails();
+      onUpdate?.();
+    } catch (error) {
+      console.error("Error upgrading company:", error);
+      toast.error("Failed to upgrade company");
+    }
+  };
+
+  const calculateUpgradeCost = (level: number) => {
+    return 1000 * Math.pow(level, 2);
+  };
+
   if (!company) return null;
 
   const IconComponent = getCompanyIcon(company.company_type_key);
+  const companyType = getCompanyTypeByKey(company.company_type_key);
   const regionName =
     companyDetails?.region?.custom_name ??
     companyDetails?.region?.province_name ??
@@ -240,25 +285,140 @@ export function CompanyDetailsSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          {/* Upgrade Section */}
+          {companyType && company.level < companyType.max_level && (
+            <div className="space-y-3">
+              {/* Upgrade Button */}
+              <Button
+                onClick={() => setShowUpgradeStages(!showUpgradeStages)}
+                className={cn(
+                  "w-full h-10 font-semibold",
+                  "bg-amber-500 hover:bg-amber-600 text-white",
+                  "border border-amber-600/30",
+                  "transition-colors duration-200"
+                )}
+              >
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Upgrade Company
+                {showUpgradeStages ? (
+                  <ChevronUp className="ml-auto h-4 w-4" />
+                ) : (
+                  <ChevronDown className="ml-auto h-4 w-4" />
+                )}
+              </Button>
+
+              {/* Upgrade Stages */}
+              {showUpgradeStages && (
+                <div className="grid grid-cols-4 gap-2 p-3 rounded-lg border border-border/60 bg-muted/30">
+                  {Array.from({ length: companyType.max_level - 1 }, (_, i) => i + 1).map((fromLevel) => {
+                    const toLevel = fromLevel + 1;
+                    const cost = calculateUpgradeCost(fromLevel);
+                    const isCurrentUpgrade = fromLevel === company.level;
+                    const isPastUpgrade = fromLevel < company.level;
+                    const isFutureUpgrade = fromLevel > company.level;
+
+                    return (
+                      <button
+                        key={fromLevel}
+                        onClick={() => {
+                          if (isCurrentUpgrade) {
+                            setSelectedUpgradeLevel(fromLevel);
+                            setShowUpgradeDialog(true);
+                          }
+                        }}
+                        disabled={!isCurrentUpgrade}
+                        className={cn(
+                          "flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all",
+                          isCurrentUpgrade &&
+                            "border-primary bg-primary/15 hover:bg-primary/20 cursor-pointer",
+                          isPastUpgrade &&
+                            "border-border/40 bg-muted/30 opacity-60 cursor-not-allowed",
+                          isFutureUpgrade &&
+                            "border-border/40 bg-card opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {/* Level Indicator */}
+                        <div className="flex items-center gap-0.5">
+                          <span className={cn(
+                            "text-xs font-bold",
+                            isCurrentUpgrade && "text-primary",
+                            !isCurrentUpgrade && "text-muted-foreground"
+                          )}>
+                            {fromLevel}
+                          </span>
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <span className={cn(
+                            "text-xs font-bold",
+                            isCurrentUpgrade && "text-primary",
+                            !isCurrentUpgrade && "text-muted-foreground"
+                          )}>
+                            {toLevel}
+                          </span>
+                        </div>
+
+                        {/* Icon */}
+                        <div className={cn(
+                          "text-lg",
+                          isPastUpgrade && "opacity-50"
+                        )}>
+                          {isPastUpgrade
+                            ? "✓"
+                            : company.company_type_key === "bakery"
+                            ? getBreadIcon(toLevel)
+                            : "⬆"
+                          }
+                        </div>
+
+                        {/* Cost */}
+                        <div className="flex items-center gap-0.5">
+                          <Coins className={cn(
+                            "h-3 w-3",
+                            isCurrentUpgrade && "text-amber-600",
+                            !isCurrentUpgrade && "text-muted-foreground"
+                          )} />
+                          <span className={cn(
+                            "text-xs font-bold",
+                            isCurrentUpgrade && "text-amber-600",
+                            !isCurrentUpgrade && "text-muted-foreground"
+                          )}>
+                            {cost}
+                          </span>
+                        </div>
+
+                        {/* Benefits */}
+                        <div className="text-[9px] text-center text-muted-foreground leading-tight">
+                          {company.company_type_key === "bakery"
+                            ? getQualityName(toLevel)
+                            : "Quality"
+                          }
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Company Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border border-border/60 bg-card/50 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <TrendingUp className="h-4 w-4" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                <TrendingUp className="h-3.5 w-3.5" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Level</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{company.level}</p>
             </div>
-            <div className="rounded-lg border border-border/60 bg-card/50 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Building2 className="h-4 w-4" />
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                <Building2 className="h-3.5 w-3.5" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Health</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{company.health}%</p>
             </div>
-            <div className="rounded-lg border border-border/60 bg-card/50 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Users className="h-4 w-4" />
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                <Users className="h-3.5 w-3.5" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Staff</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{employees.length}</p>
@@ -266,9 +426,9 @@ export function CompanyDetailsSheet({
           </div>
 
           {/* Location */}
-          <div className="rounded-lg border border-border/60 bg-card/50 p-4">
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <MapPin className="h-4 w-4" />
+              <MapPin className="h-3.5 w-3.5" />
               <span className="text-xs font-semibold uppercase tracking-wider">Location</span>
             </div>
             <RegionName
@@ -321,9 +481,9 @@ export function CompanyDetailsSheet({
 
             {/* Job Posting Form */}
             {showJobForm && (
-              <div className="rounded-lg border border-border/60 bg-card/50 p-4 space-y-4">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-foreground">Create Job Listing</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Position Title
@@ -334,7 +494,7 @@ export function CompanyDetailsSheet({
                       onChange={(e) =>
                         setJobFormData({ ...jobFormData, positionTitle: e.target.value })
                       }
-                      className="w-full px-3 py-2 text-sm border border-border/60 rounded-lg bg-card text-foreground"
+                      className="w-full h-9 px-3 text-sm border border-border/60 rounded-lg bg-card text-foreground"
                     />
                   </div>
                   <div className="space-y-2">
@@ -351,12 +511,12 @@ export function CompanyDetailsSheet({
                           positionsAvailable: parseInt(e.target.value) || 1,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm border border-border/60 rounded-lg bg-card text-foreground"
+                      className="w-full h-9 px-3 text-sm border border-border/60 rounded-lg bg-card text-foreground"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Wage (Community Coin/Day)
+                      Wage per Day
                     </label>
                     <input
                       type="number"
@@ -369,7 +529,7 @@ export function CompanyDetailsSheet({
                           wagePerDayCommunityCoin: parseFloat(e.target.value) || 0.01,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm border border-border/60 rounded-lg bg-card text-foreground"
+                      className="w-full h-9 px-3 text-sm border border-border/60 rounded-lg bg-card text-foreground"
                     />
                   </div>
                 </div>
@@ -377,11 +537,15 @@ export function CompanyDetailsSheet({
                   <Button
                     onClick={handleCreateJobListing}
                     disabled={creatingJob}
-                    className="flex-1"
+                    className="flex-1 h-9 font-semibold"
                   >
                     {creatingJob ? "Creating..." : "Create Listing"}
                   </Button>
-                  <Button variant="outline" onClick={() => setShowJobForm(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowJobForm(false)}
+                    className="h-9"
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -391,11 +555,11 @@ export function CompanyDetailsSheet({
             {/* Employees List */}
             {loadingEmployees ? (
               <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
               </div>
             ) : employees.length === 0 ? (
-              <div className="rounded-lg border border-border/60 bg-card/50 p-8 text-center">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   No employees yet. Post a job listing to hire workers.
                 </p>
@@ -405,36 +569,34 @@ export function CompanyDetailsSheet({
                 {employees.map((employee) => (
                   <div
                     key={employee.id}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card/50 p-4"
+                    className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/10 p-3 hover:bg-muted/20 transition-colors"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
-                        <Users className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-foreground truncate">
-                          {employee.employee_name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {employee.position} · {employee.total_work_days} days worked
-                        </p>
-                      </div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
+                      <Users className="h-4 w-4" />
                     </div>
-                    <div className="flex items-center gap-1 text-sm font-semibold shrink-0">
-                      <Coins className="h-4 w-4" />
-                      <span>{employee.wage_per_day_community_coin} currency/day</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-foreground truncate">
+                        {employee.employee_name}
+                      </h4>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {employee.position} · {employee.total_work_days}d worked
+                      </p>
                     </div>
-                    <Badge variant="outline" className="shrink-0">
+                    <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground shrink-0">
+                      <Coins className="h-3 w-3" />
+                      <span>{employee.wage_per_day_community_coin}/day</span>
+                    </div>
+                    <Badge variant="outline" className="shrink-0 text-[9px] px-2 py-0.5">
                       {employee.employee_type}
                     </Badge>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => handleFireEmployee(employee.id)}
                       disabled={firingEmployeeId === employee.id}
-                      className="gap-2 shrink-0"
+                      className="h-8 px-2.5 gap-1.5 text-xs shrink-0"
                     >
-                      <UserX className="h-4 w-4" />
+                      <UserX className="h-3 w-3" />
                       {firingEmployeeId === employee.id ? "Firing..." : "Fire"}
                     </Button>
                   </div>
@@ -452,11 +614,11 @@ export function CompanyDetailsSheet({
 
             {loadingJobListings ? (
               <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
               </div>
             ) : jobListings.length === 0 ? (
-              <div className="rounded-lg border border-border/60 bg-card/50 p-8 text-center">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   No active job listings. Post a job listing to attract workers.
                 </p>
@@ -466,29 +628,28 @@ export function CompanyDetailsSheet({
                 {jobListings.map((listing) => (
                   <div
                     key={listing.id}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card/50 p-4"
+                    className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/10 p-3 hover:bg-muted/20 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-bold text-foreground truncate">
                         {listing.position_title}
                       </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {listing.positions_available} opening{listing.positions_available !== 1 ? 's' : ''} ·
-                        {listing.community_name}
+                      <p className="text-xs text-muted-foreground truncate">
+                        {listing.positions_available} opening{listing.positions_available !== 1 ? 's' : ''} · {listing.community_name}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 text-sm font-semibold shrink-0">
-                      <Coins className="h-4 w-4" />
-                      <span>{listing.wage_per_day_community_coin} currency/day</span>
+                    <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground shrink-0 whitespace-nowrap">
+                      <Coins className="h-3 w-3" />
+                      <span>{listing.wage_per_day_community_coin}/day</span>
                     </div>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => handleCancelListing(listing.id)}
                       disabled={cancellingListingId === listing.id}
-                      className="gap-2 shrink-0"
+                      className="h-8 px-2.5 gap-1.5 text-xs shrink-0"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                       {cancellingListingId === listing.id ? "Cancelling..." : "Cancel"}
                     </Button>
                   </div>
@@ -498,6 +659,22 @@ export function CompanyDetailsSheet({
           </div>
         </div>
       </SheetContent>
+
+      {/* Upgrade Dialog */}
+      {selectedUpgradeLevel !== null && companyType && (
+        <CompanyUpgradeDialog
+          isOpen={showUpgradeDialog}
+          onClose={() => {
+            setShowUpgradeDialog(false);
+            setSelectedUpgradeLevel(null);
+          }}
+          onConfirm={handleUpgradeCompany}
+          level={selectedUpgradeLevel}
+          goldCost={calculateUpgradeCost(selectedUpgradeLevel)}
+          companyName={company?.name || ""}
+          maxLevel={companyType.max_level}
+        />
+      )}
     </Sheet>
   );
 }

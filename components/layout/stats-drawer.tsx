@@ -36,6 +36,7 @@ import { getUserWallet } from "@/app/actions/economy"
 import type { WalletDisplay } from "@/lib/types/economy"
 import { GoldCoinIcon, CommunityCoinIcon } from "@/components/ui/coin-icon"
 import { QuickTravel } from "@/components/layout/quick-travel"
+import { useOptionalUserVitals } from "@/components/layout/user-vitals"
 
 interface StatsDrawerProps {
   isOpen: boolean
@@ -280,7 +281,10 @@ export function StatsDrawer({
   lastTrainedAt,
 }: StatsDrawerProps) {
   // Subscribe to real-time user stats
-  const { stats: realtimeStats } = useUserStats(userId)
+  const { stats: realtimeStats, refetch: refetchStats } = useUserStats(userId)
+
+  // Get energy vitals context for global energy updates
+  const vitalsContext = useOptionalUserVitals()
 
   const [currentTime, setCurrentTime] = React.useState<Date | null>(null)
   const [displayEnergy, setDisplayEnergy] = React.useState(energy)
@@ -292,6 +296,11 @@ export function StatsDrawer({
   const [userCurrentLocationName, setUserCurrentLocationName] = React.useState("Unknown")
   const [travelStatus, setTravelStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle")
   const [travelError, setTravelError] = React.useState<string | undefined>()
+  const [foodQuality, setFoodQuality] = React.useState<number | null>(null)
+  const [isEating, setIsEating] = React.useState(false)
+
+  // Get food count from vitals context (single source of truth)
+  const foodCount = vitalsContext?.foodCount ?? 0
 
   // Update server time every second (only after the component mounts)
   React.useEffect(() => {
@@ -353,7 +362,8 @@ export function StatsDrawer({
           const locationData = await locationResponse.json()
           if (locationData && locationData.has_location) {
             setUserCurrentHex(locationData.hex_id || null)
-            setUserCurrentLocationName(locationData.custom_name || "Unknown")
+            const displayName = locationData.custom_name || locationData.province_name || locationData.hex_id || "Unknown"
+            setUserCurrentLocationName(displayName)
           }
         }
 
@@ -507,6 +517,67 @@ export function StatsDrawer({
     }
   }
 
+  const handleEat = async () => {
+    if (isEating || foodCount === 0) return
+
+    setIsEating(true)
+    try {
+      const response = await fetch("/api/users/eat-food", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        showErrorToast(error.error || "Failed to eat food")
+        return
+      }
+
+      const result = await response.json()
+
+      console.log("[STATS-DRAWER] Eat food result:", result)
+
+      // Update energy in local state
+      if (result.energy !== undefined) {
+        setDisplayEnergy(result.energy)
+        // Update global energy context
+        if (vitalsContext?.setEnergy) {
+          vitalsContext.setEnergy(result.energy)
+        }
+      }
+
+      // Refresh food inventory count in vitals context (single source of truth)
+      try {
+        const inventoryResponse = await fetch("/api/inventory?type=food")
+        if (inventoryResponse.ok) {
+          const data = await inventoryResponse.json()
+          console.log("[STATS-DRAWER] Refreshed food count:", data.quantity)
+          if (vitalsContext?.setFoodCount) {
+            vitalsContext.setFoodCount(data.quantity || 0)
+          }
+        }
+      } catch (err) {
+        console.error("[STATS-DRAWER] Error refreshing food count:", err)
+      }
+
+      // Refresh user stats to update morale immediately
+      console.log("[STATS-DRAWER] Refetching stats...")
+      if (refetchStats) {
+        await refetchStats()
+        console.log("[STATS-DRAWER] Stats refetched")
+      }
+
+      // Show success toast with energy gained
+      const qualityNames = ["", "Common", "Uncommon", "Rare", "Epic", "Legendary"]
+      const qualityName = qualityNames[result.foodQuality] || "Food"
+      showInfoToast(`Ate ${qualityName} food! +${result.energyGained} energy, +${result.moraleBoost} morale`)
+    } catch (error) {
+      console.error('[STATS-DRAWER] Error eating food:', error)
+      showErrorToast("Something went wrong. Try again shortly.")
+    } finally {
+      setIsEating(false)
+    }
+  }
+
 
   return (
     <>
@@ -618,12 +689,22 @@ export function StatsDrawer({
                             <Button
                               variant="ghost"
                               size="sm"
-                              disabled
-                              className={`${actionButtonBase} border border-border/40 bg-muted/80 text-muted-foreground cursor-not-allowed`}
+                              onClick={handleEat}
+                              disabled={foodCount === 0 || isEating}
+                              className={cn(
+                                actionButtonBase,
+                                foodCount > 0 && !isEating
+                                  ? "border-2 border-amber-500/60 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 text-white hover:from-amber-500 hover:via-orange-500 hover:to-amber-600"
+                                  : "border border-border/40 bg-muted/80 text-muted-foreground cursor-not-allowed"
+                              )}
                             >
-                              <Utensils className="h-3.5 w-3.5" />
+                              {isEating ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                              ) : (
+                                <span className="text-sm">🍞</span>
+                              )}
                               <span className={showButtonText ? "inline" : "sr-only"}>
-                                Eat
+                                Eat {foodCount > 0 && `(${foodCount})`}
                               </span>
                             </Button>
                           </div>
@@ -779,15 +860,25 @@ export function StatsDrawer({
                 <div className="flex items-center justify-between gap-3">
                   {/* Action Buttons - Wider with Better Spacing */}
                   <div className="flex items-center gap-2 flex-1">
-                    {/* Eat Button - More Visible Grey */}
+                    {/* Eat Button - Food with Quality */}
                     <Button
                       variant="ghost"
                       size="sm"
-                      disabled
-                      className="h-8 flex-1 text-xs font-semibold bg-muted/80 text-muted-foreground cursor-not-allowed"
+                      onClick={handleEat}
+                      disabled={foodCount === 0 || isEating}
+                      className={cn(
+                        "h-8 flex-1 text-xs font-bold relative overflow-hidden",
+                        foodCount > 0 && !isEating
+                          ? "border-2 border-amber-500/60 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 text-white hover:from-amber-500 hover:via-orange-500 hover:to-amber-600"
+                          : "bg-muted/80 text-muted-foreground cursor-not-allowed"
+                      )}
                     >
-                      <Utensils className="h-3.5 w-3.5 mr-1.5" />
-                      Eat
+                      {isEating ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" aria-hidden />
+                      ) : (
+                        <span className="text-sm mr-1">🍞</span>
+                      )}
+                      {isEating ? 'Eating...' : `Eat${foodCount > 0 ? ` (${foodCount})` : ''}`}
                     </Button>
 
                     {/* Train Button with Camo Pattern */}

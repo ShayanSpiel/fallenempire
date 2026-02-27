@@ -580,6 +580,7 @@ export type HexMapProps = {
   drawerOnUpdateRegionName?: (hexId: string, newName: string) => Promise<void>;
   drawerUserRankTier?: number | null;
   drawerUserId?: string | null;
+  drawerUserCommunityId?: string | null;
   drawerOnTravel?: (hexId: string) => Promise<void>;
   drawerUserCurrentHex?: string | null;
   drawerUserCurrentHexName?: string | null;
@@ -1033,6 +1034,7 @@ export default function HexMapFlat({
   drawerOnUpdateRegionName,
   drawerUserRankTier,
   drawerUserId,
+  drawerUserCommunityId,
   drawerOnTravel,
   drawerUserCurrentHex = null,
   drawerUserCurrentHexName = null,
@@ -3197,6 +3199,7 @@ function buildZoneBorderData({
         onUpdateRegionName={drawerOnUpdateRegionName}
         userId={drawerUserId ?? null}
         userRankTier={drawerUserRankTier}
+        userCommunityId={drawerUserCommunityId ?? null}
         resourceBonus={selectedResourceBonus}
         resourceStat={selectedResourceStat}
         onTravel={drawerOnTravel}

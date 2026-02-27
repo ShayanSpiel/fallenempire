@@ -6,7 +6,7 @@
 export const WALL_IMG_URL = "https://i.ibb.co/d0z6xq1q/town.png";
 
 // Durations (milliseconds)
-export const LOG_TOAST_DURATION = 10500;
+export const LOG_TOAST_DURATION = 21000;
 export const FLOATING_HIT_DURATION = 650;
 export const HERO_BUMP_DURATION = 220;
 export const SCORE_BUMP_DURATION = 150;

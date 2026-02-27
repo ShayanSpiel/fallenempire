@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const selectFields = "id, energy, energy_updated_at, morale, rage, strength, main_community_id, current_military_rank";
+    const selectFields = "id, energy, energy_updated_at, morale, rage, strength, main_community_id, current_military_rank, username, avatar_url";
     const { data: profile } = await supabaseAdmin
       .from("users")
       .select(selectFields)
@@ -54,6 +54,8 @@ export async function POST(request: Request) {
     let strength = profile?.strength ?? 1;
     let communityId = profile?.main_community_id ?? null;
     let militaryRank: MilitaryRank = (profile?.current_military_rank as MilitaryRank) ?? 'Recruit';
+    let username = profile?.username ?? null;
+    let avatarUrl = profile?.avatar_url ?? null;
 
     if (!actorUserId) {
       const fallbackUsername =
@@ -90,6 +92,8 @@ export async function POST(request: Request) {
       strength = insertedProfile?.strength ?? 1;
       communityId = insertedProfile?.main_community_id ?? null;
       militaryRank = (insertedProfile?.current_military_rank as MilitaryRank) ?? 'Recruit';
+      username = insertedProfile?.username ?? null;
+      avatarUrl = insertedProfile?.avatar_url ?? null;
     }
 
     if (!actorUserId) {
@@ -155,16 +159,20 @@ export async function POST(request: Request) {
         battleSide =
           battle.defender_community_id === communityId ? "defender" : "attacker";
 
-        // Check if user is on the battle hex or in their community's territory
-        const { data: isOnHex } = await supabaseAdmin.rpc("is_user_on_hex", {
-          p_user_id: actorUserId,
-          p_hex_id: battle.target_hex_id,
-        });
+        // Parallelize location checks - run both RPCs concurrently
+        const [hexCheckResult, territoryCheckResult] = await Promise.all([
+          supabaseAdmin.rpc("is_user_on_hex", {
+            p_user_id: actorUserId,
+            p_hex_id: battle.target_hex_id,
+          }),
+          supabaseAdmin.rpc("is_user_in_community_territory", {
+            p_user_id: actorUserId,
+            p_community_id: communityId,
+          }),
+        ]);
 
-        const { data: isInTerritory } = await supabaseAdmin.rpc("is_user_in_community_territory", {
-          p_user_id: actorUserId,
-          p_community_id: communityId,
-        });
+        const isOnHex = hexCheckResult.data;
+        const isInTerritory = territoryCheckResult.data;
 
         if (!isOnHex && !isInTerritory) {
           return NextResponse.json(
@@ -210,25 +218,6 @@ export async function POST(request: Request) {
 
       result = critical ? "CRITICAL" : "HIT";
 
-      // CRITICAL: Verify user exists before calling RPC
-      const { data: userVerify, error: verifyError } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("id", actorUserId)
-        .maybeSingle();
-
-      if (!userVerify || verifyError) {
-        console.error("User verification failed:", {
-          actorUserId,
-          verifyError,
-          profileExists: !!profile,
-        });
-        return NextResponse.json(
-          { error: `User ${actorUserId} does not exist in database` },
-          { status: 500 }
-        );
-      }
-
       // Apply damage to battle
       // Try with result parameter first (new version)
       let attackError = null;
@@ -267,21 +256,6 @@ export async function POST(request: Request) {
       }
     } else {
       // Even on MISS, we need to log it for toast display
-
-      // CRITICAL: Verify user exists before logging MISS
-      const { data: userVerify, error: verifyError } = await supabaseAdmin
-        .from("users")
-        .select("id, username, avatar_url")
-        .eq("id", actorUserId)
-        .maybeSingle();
-
-      if (!userVerify || verifyError) {
-        console.error("User verification failed for MISS:", {
-          actorUserId,
-          verifyError,
-        });
-        // Don't fail the whole request, just skip logging
-      } else {
       const { data: battle } = await supabaseAdmin
         .from("battles")
         .select("attacker_community_id, defender_community_id")
@@ -292,12 +266,11 @@ export async function POST(request: Request) {
         const side =
           communityId === battle.defender_community_id ? "defender" : "attacker";
 
-        // Use verified user data
         const { error: missLogError } = await supabaseAdmin.from("battle_logs").insert({
           battle_id: battleId,
-          user_id: userVerify.id,
-          username: userVerify.username ?? "Unknown",
-          actor_avatar_url: userVerify.avatar_url ?? null,
+          user_id: actorUserId,
+          username: username ?? "Unknown",
+          actor_avatar_url: avatarUrl ?? null,
           damage: 0,
           side: side,
           result: "MISS",
@@ -305,14 +278,13 @@ export async function POST(request: Request) {
         if (missLogError && missLogError.code === "42703") {
           await supabaseAdmin.from("battle_logs").insert({
             battle_id: battleId,
-            user_id: userVerify.id,
-            username: userVerify.username ?? "Unknown",
+            user_id: actorUserId,
+            username: username ?? "Unknown",
             damage: 0,
             side: side,
             result: "MISS",
           });
         }
-      }
       }
     }
 

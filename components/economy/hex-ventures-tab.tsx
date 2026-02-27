@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Building2, Plus, Coins } from "lucide-react";
+import { Building2, Plus, Coins, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   COMPANY_TYPES,
@@ -16,6 +16,7 @@ import {
 import type { CompanyWithType } from "@/lib/types/companies";
 import { getCompaniesByHex, createCompany } from "@/app/actions/companies";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 interface HexVenturesTabProps {
   hexId: string;
@@ -50,9 +51,11 @@ export function HexVenturesTab({
   userId,
   communityId,
 }: HexVenturesTabProps) {
+  const { theme } = useTheme();
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [hexCompanies, setHexCompanies] = useState<CompanyWithType[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCompaniesList, setShowCompaniesList] = useState(false);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -158,88 +161,25 @@ export function HexVenturesTab({
     );
   }
 
+  const isDarkMode = theme === "dark";
+  const buttonClassName = isDarkMode
+    ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+    : "bg-amber-500 hover:bg-amber-600 text-white border-amber-500";
+
   return (
     <div className="space-y-4">
-      {/* Create Company Button - NOW ON TOP */}
-      {!showCreate && (
-        <Button
-          onClick={() => setShowCreate(true)}
-          variant="outline"
-          className="w-full gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Establish New Company
-        </Button>
-      )}
+      {/* Company Creation Button - ALWAYS ON TOP */}
+      <Button
+        onClick={() => setShowCreate(!showCreate)}
+        className={cn("w-full gap-2 font-semibold", buttonClassName)}
+      >
+        <Plus className="h-4 w-4" />
+        Establish New Company
+      </Button>
 
-      {/* Existing Companies List */}
-      <div className="space-y-2">
-        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-          Companies on this Hex
-        </h3>
-        {isLoadingCompanies ? (
-          <div className="space-y-2">
-            <CompanySkeleton />
-            <CompanySkeleton />
-          </div>
-        ) : hexCompanies.length > 0 ? (
-          <div className="space-y-2">
-            {hexCompanies.map((company) => {
-              const IconComponent = getCompanyIcon(company.company_type.key);
-              return (
-                <Card
-                  key={company.id}
-                  className="rounded-lg border border-border/60 bg-card p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <IconComponent className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-foreground truncate">
-                          {company.name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {company.company_type.name}
-                        </p>
-                        {company.owner_username && (
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Owner: {company.owner_username}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge
-                        variant={
-                          company.owner_id === userId ? "default" : "outline"
-                        }
-                        className="text-[9px] px-1.5 py-0.5"
-                      >
-                        Lv{company.level}
-                      </Badge>
-                      {company.owner_id === userId && (
-                        <span className="text-[9px] text-primary font-semibold">
-                          Your Company
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground py-4 text-center">
-            No companies on this hex yet.
-          </p>
-        )}
-      </div>
-
-      {/* Create Company Form - ALWAYS VISIBLE STRUCTURE */}
+      {/* Company Creation Form - BELOW BUTTON */}
       {showCreate && (
-        <Card className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
+        <Card className="rounded-xl border border-border/60 bg-card p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-foreground">New Company</h3>
             <Button
@@ -395,7 +335,7 @@ export function HexVenturesTab({
           <Button
             onClick={handleCreateCompany}
             disabled={!selectedTypeKey || !companyName.trim() || isCreating}
-            className="w-full gap-2"
+            className={cn("w-full gap-2 font-semibold", buttonClassName)}
           >
             {isCreating ? (
               <>Creating...</>
@@ -407,6 +347,89 @@ export function HexVenturesTab({
             )}
           </Button>
         </Card>
+      )}
+
+      {/* Expandable Companies List - BELOW FORM */}
+      {(hexCompanies.length > 0 || isLoadingCompanies) && (
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowCompaniesList(!showCompaniesList)}
+            className="w-full flex items-center justify-between p-3 rounded-lg border border-border/60 bg-card hover:bg-muted/50 transition-colors"
+          >
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Companies on this Hex
+            </h3>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                showCompaniesList && "rotate-180"
+              )}
+            />
+          </button>
+
+          {showCompaniesList && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              {isLoadingCompanies ? (
+                <>
+                  <CompanySkeleton />
+                  <CompanySkeleton />
+                </>
+              ) : hexCompanies.length > 0 ? (
+                <>
+                  {hexCompanies.map((company) => {
+                    const IconComponent = getCompanyIcon(company.company_type.key);
+                    return (
+                      <Card
+                        key={company.id}
+                        className="rounded-lg border border-border/60 bg-card p-3 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-foreground truncate">
+                                {company.name}
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                {company.company_type.name}
+                              </p>
+                              {company.owner_username && (
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  Owner: {company.owner_username}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge
+                              variant={
+                                company.owner_id === userId ? "default" : "outline"
+                              }
+                              className="text-[9px] px-1.5 py-0.5"
+                            >
+                              Lv{company.level}
+                            </Badge>
+                            {company.owner_id === userId && (
+                              <span className="text-[9px] text-primary font-semibold">
+                                Your Company
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  No companies on this hex yet.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

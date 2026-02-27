@@ -91,6 +91,7 @@ type Props = {
   onUpdateRegionName?: (hexId: string, newName: string) => Promise<void>;
   userRankTier?: number | null;
   userId?: string | null;
+  userCommunityId?: string | null;
   resourceBonus?: HexResourceBonus | null;
   resourceStat?: {
     bonus: HexResourceBonus;
@@ -219,6 +220,7 @@ export default memo(function RegionDrawer({
   onUpdateRegionName,
   userRankTier = null,
   userId = null,
+  userCommunityId = null,
   resourceBonus = null,
   resourceStat = null,
   onTravel,
@@ -277,7 +279,11 @@ export default memo(function RegionDrawer({
       : "Standard Production";
   const resourceValueClassName = resourceStat?.valueClassName;
 
-  const canEditRegionName = isSovereign(userRankTier) && Boolean(onUpdateRegionName);
+  const canEditRegionName =
+    isSovereign(userRankTier) &&
+    Boolean(onUpdateRegionName) &&
+    Boolean(userCommunityId) &&
+    hex?.ownerCommunityId === userCommunityId;
 
   const handleEditName = () => {
     setEditedName(hex?.region.customName ?? "");
