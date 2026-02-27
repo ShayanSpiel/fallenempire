@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { X, Users, Shield, Swords, TrendingUp, Crown, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BATTLE_THEME } from "@/lib/battle-theme";
 import { getCommunityAvatarUrl } from "@/lib/community-visuals";
@@ -28,6 +30,7 @@ type BattleObserver = {
   id: string;
   username: string;
   avatar_url?: string | null;
+  user_tier?: "alpha" | "sigma" | "omega" | null;
   community_id?: string | null;
   last_seen: string;
 };
@@ -571,12 +574,20 @@ export function BattleInfoModal({
                         key={observer.id}
                         className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors"
                       >
-                        <Avatar className="h-8 w-8 border border-border">
-                          <AvatarImage src={getUserAvatar(observer.username, observer.avatar_url)} />
-                          <AvatarFallback className="text-xs">{observer.username.slice(0, 2)}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar
+                          username={observer.username}
+                          avatarUrl={observer.avatar_url}
+                          size="sm"
+                          className="border border-border"
+                        />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{observer.username}</p>
+                          <UserNameDisplay
+                            username={observer.username}
+                            userTier={observer.user_tier ?? "alpha"}
+                            showLink={false}
+                            badgeSize="sm"
+                            className="font-medium text-sm truncate"
+                          />
                           <p className="text-xs text-muted-foreground">Active now</p>
                         </div>
                         <div className={cn("h-2 w-2 rounded-full animate-pulse flex-shrink-0", STATUS_COLORS.activeIndicator)} />

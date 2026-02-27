@@ -5,13 +5,14 @@ type CommunityMemberRow = {
   id: string;
   username: string | null;
   avatar_url: string | null;
+  user_tier?: string | null;
 };
 
 type CommunityMemberJoinRow = {
   user_id: string;
   users:
-    | { id: string; username: string | null; avatar_url: string | null }
-    | { id: string; username: string | null; avatar_url: string | null }[]
+    | { id: string; username: string | null; avatar_url: string | null; user_tier?: string | null }
+    | { id: string; username: string | null; avatar_url: string | null; user_tier?: string | null }[]
     | null;
 };
 
@@ -77,7 +78,8 @@ export async function GET(req: Request) {
           users:user_id (
             id,
             username,
-            avatar_url
+            avatar_url,
+            user_tier
           )
         `
         )

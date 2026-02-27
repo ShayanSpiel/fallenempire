@@ -272,8 +272,8 @@ export async function voteOnProposalAction(
       throw new Error("This proposal is no longer open for voting");
     }
 
-    // Get community and user's rank
-    const { data: community, error: communityError } = await supabase
+    // Get community and user's rank (use let for CFC_ALLIANCE reassignment)
+    const { data: initialCommunity, error: communityError } = await supabase
       .from("communities")
       .select("governance_type")
       .eq("id", proposal.community_id)
@@ -284,30 +284,88 @@ export async function voteOnProposalAction(
       throw new Error(`Community not found: ${communityError.message}`);
     }
 
-    if (!community) {
+    if (!initialCommunity) {
       throw new Error("Community not found");
     }
 
+    let community = initialCommunity;
     console.log("[voteOnProposalAction] community:", community);
 
-    const { data: member, error: memberError } = await supabase
-      .from("community_members")
-      .select("rank_tier")
-      .eq("community_id", proposal.community_id)
-      .eq("user_id", profileId)
-      .maybeSingle(); // Changed from .single() to .maybeSingle()
+    // For CFC_ALLIANCE, check if user is a member of either the initiator or target community
+    let member: { rank_tier: number } | null = null;
+    let userCommunity: string | null = null;
 
-    if (memberError) {
-      console.error("[voteOnProposalAction] Member fetch error:", memberError);
-      throw new Error(`Member lookup failed: ${memberError.message}`);
+    if (proposal.law_type === "CFC_ALLIANCE") {
+      // Check initiator community
+      const { data: initiatorMember } = await supabase
+        .from("community_members")
+        .select("rank_tier")
+        .eq("community_id", proposal.community_id)
+        .eq("user_id", profileId)
+        .maybeSingle();
+
+      if (initiatorMember) {
+        member = initiatorMember;
+        userCommunity = proposal.community_id;
+      } else {
+        // Check target community
+        const { data: proposalData } = await supabase
+          .from("community_proposals")
+          .select("metadata")
+          .eq("id", proposalId)
+          .single();
+
+        const targetCommunityId = proposalData?.metadata?.target_community_id;
+
+        if (targetCommunityId) {
+          const { data: targetMember } = await supabase
+            .from("community_members")
+            .select("rank_tier")
+            .eq("community_id", targetCommunityId)
+            .eq("user_id", profileId)
+            .maybeSingle();
+
+          if (targetMember) {
+            member = targetMember;
+            userCommunity = targetCommunityId;
+
+            // Get target community governance for vote permission check
+            const { data: targetCommunity } = await supabase
+              .from("communities")
+              .select("governance_type")
+              .eq("id", targetCommunityId)
+              .single();
+
+            if (targetCommunity) {
+              community = targetCommunity;
+            }
+          }
+        }
+      }
+    } else {
+      // For non-CFC laws, check only the proposal's community
+      const { data: regularMember, error: memberError } = await supabase
+        .from("community_members")
+        .select("rank_tier")
+        .eq("community_id", proposal.community_id)
+        .eq("user_id", profileId)
+        .maybeSingle();
+
+      if (memberError) {
+        console.error("[voteOnProposalAction] Member fetch error:", memberError);
+        throw new Error(`Member lookup failed: ${memberError.message}`);
+      }
+
+      member = regularMember;
+      userCommunity = proposal.community_id;
     }
 
     if (!member) {
-      console.error("[voteOnProposalAction] User not a member of community");
-      throw new Error("You are not a member of this community");
+      console.error("[voteOnProposalAction] User not a member of any relevant community");
+      throw new Error("You are not a member of this community or the target community");
     }
 
-    console.log("[voteOnProposalAction] member:", member);
+    console.log("[voteOnProposalAction] member:", member, "community:", userCommunity);
 
     // Check if user can vote on this law
     const canVote = canVoteOnLaw(proposal.law_type as LawType, community.governance_type, member.rank_tier);
@@ -735,71 +793,6 @@ async function executeLawAction(
         throw new Error("Invalid metadata for CFC_ALLIANCE");
       }
 
-      // Check if there's a pending OR passed alliance from the target community (mutual proposal check)
-      // We check both statuses because the other community's proposal might have already passed
-      const { data: reverseProposal } = await supabase
-        .from("community_proposals")
-        .select("id, status")
-        .eq("community_id", targetCommunityId)
-        .eq("law_type", "CFC_ALLIANCE")
-        .in("status", ["pending", "passed"])
-        .filter("metadata->>target_community_id", "eq", communityId)
-        .maybeSingle();
-
-      if (reverseProposal) {
-        // Mutual approval! Both communities proposed to each other
-        // Activate the alliance
-        const { error: allianceError } = await supabase
-          .from("community_alliances")
-          .insert({
-            initiator_community_id: communityId,
-            target_community_id: targetCommunityId,
-            status: "active",
-            activated_at: new Date().toISOString(),
-            initiator_proposal_id: proposalId,
-            target_proposal_id: reverseProposal.id,
-          });
-
-        if (allianceError) {
-          throw allianceError;
-        }
-
-        // Mark the reverse proposal as passed (only if it's still pending)
-        if (reverseProposal.status === "pending") {
-          await supabase
-            .from("community_proposals")
-            .update({
-              status: "passed",
-              resolved_at: new Date().toISOString(),
-              resolution_notes: "Alliance activated via mutual approval",
-            })
-            .eq("id", reverseProposal.id);
-        }
-
-        // Notify both communities
-        const { data: initiatorComm } = await supabase
-          .from("communities")
-          .select("name")
-          .eq("id", communityId)
-          .single();
-        const { data: targetComm } = await supabase
-          .from("communities")
-          .select("name")
-          .eq("id", targetCommunityId)
-          .single();
-
-        if (initiatorComm && targetComm) {
-          await notifyLawPassed(
-            targetCommunityId,
-            `Alliance with ${initiatorComm.name}`,
-            reverseProposal.id,
-            proposal.metadata?.proposer_id
-          );
-        }
-
-        break;
-      }
-
       // Check if alliance already exists
       const { data: existingAlliance } = await supabase
         .from("community_alliances")
@@ -814,98 +807,84 @@ async function executeLawAction(
         throw new Error("Alliance already active with this community");
       }
 
-      // Check max alliances limit (5)
-      const { count: activeAlliances } = await supabase
+      // Check max alliances limit (5) for initiator
+      const { count: initiatorAlliances } = await supabase
         .from("community_alliances")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
         .or(`initiator_community_id.eq.${communityId},target_community_id.eq.${communityId}`);
 
-      if (activeAlliances && activeAlliances >= 5) {
+      if (initiatorAlliances && initiatorAlliances >= 5) {
         throw new Error("Maximum of 5 active alliances reached");
       }
 
-      // Get target community's governance info to create proposal
+      // Check max alliances limit (5) for target
+      const { count: targetAlliances } = await supabase
+        .from("community_alliances")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .or(`initiator_community_id.eq.${targetCommunityId},target_community_id.eq.${targetCommunityId}`);
+
+      if (targetAlliances && targetAlliances >= 5) {
+        throw new Error("Target community has reached maximum of 5 active alliances");
+      }
+
+      // Get community names
       const { data: targetCommunity } = await supabase
         .from("communities")
-        .select("governance_type, name")
+        .select("name")
         .eq("id", targetCommunityId)
         .single();
 
-      if (!targetCommunity) {
-        throw new Error("Target community not found");
-      }
-
-      // Get initiator community name for the proposal
       const { data: initiatorCommunity } = await supabase
         .from("communities")
         .select("name")
         .eq("id", communityId)
         .single();
 
-      // Create a proposal in the target community for them to accept
-      const rules = getGovernanceRules("CFC_ALLIANCE", targetCommunity.governance_type);
-      const expiresAt = calculateExpiresAt(rules.timeToPass);
-
-      const { data: targetProposal, error: targetProposalError } = await supabase
-        .from("community_proposals")
-        .insert({
-          community_id: targetCommunityId,
-          proposer_id: proposal.metadata?.proposer_id || null,
-          law_type: "CFC_ALLIANCE",
-          status: "pending",
-          metadata: {
-            target_community_id: communityId,
-            target_community_name: initiatorCommunity?.name || "Unknown",
-            is_response_to_proposal: proposalId,
-          },
-          expires_at: expiresAt.toISOString(),
-        })
-        .select("id")
-        .single();
-
-      if (targetProposalError) {
-        console.error("[CFC_ALLIANCE] Failed to create target proposal:", targetProposalError);
-        throw targetProposalError;
-      }
-
-      // Create alliance record in pending state
-      const { error: allianceError } = await supabase
+      // Create alliance record in pending state (use admin client to bypass RLS)
+      const { error: allianceError } = await supabaseAdmin
         .from("community_alliances")
         .insert({
           initiator_community_id: communityId,
           target_community_id: targetCommunityId,
-          status: "pending_target_approval",
+          status: "pending_mutual_approval",
           initiator_proposal_id: proposalId,
-          target_proposal_id: targetProposal.id,
         });
 
       if (allianceError) {
+        console.error("[CFC_ALLIANCE] Failed to create pending alliance:", allianceError);
         throw allianceError;
       }
 
-      const proposerUsername = proposal.metadata?.proposer_username || "A leader";
-      const proposerMessage = `${proposerUsername} from ${initiatorCommunity?.name || "Unknown"} proposed this alliance`;
+      // When both communities approve (determined by determineEarlyResolution), activate the alliance
+      // Update the pending alliance to active status
+      const { error: activationError } = await supabaseAdmin
+        .from("community_alliances")
+        .update({
+          status: "active",
+          activated_at: new Date().toISOString(),
+        })
+        .eq("initiator_community_id", communityId)
+        .eq("target_community_id", targetCommunityId)
+        .eq("status", "pending_mutual_approval");
 
-      // Notify target community about alliance proposal
-      await notifyLawProposed(
-        targetCommunityId,
-        `CFC Alliance with ${initiatorCommunity?.name || "Unknown"}`,
-        targetProposal.id,
-        proposal.metadata?.proposer_id,
-        {
-          law_type: "CFC_ALLIANCE",
-          initiator_community_name: initiatorCommunity?.name,
-          initiator_community_id: communityId,
-          proposer_username: proposal.metadata?.proposer_username,
-          custom_body: proposerMessage,
-        }
-      );
+      if (activationError) {
+        console.error("[CFC_ALLIANCE] Failed to activate alliance:", activationError);
+        throw activationError;
+      }
 
-      // Notify initiator community that alliance was proposed to target
+      // Notify both communities
       await notifyLawPassed(
         communityId,
-        `CFC Alliance with ${targetCommunity.name}`,
+        `Alliance with ${targetCommunity?.name || "Unknown"} Activated`,
+        proposalId,
+        proposal.metadata?.proposer_id
+      );
+
+      await notifyLawPassed(
+        targetCommunityId,
+        `Alliance with ${initiatorCommunity?.name || "Unknown"} Activated`,
         proposalId,
         proposal.metadata?.proposer_id
       );
@@ -969,19 +948,129 @@ interface EarlyResolutionResult {
   reason?: string;
 }
 
-function determineEarlyResolution(
+async function determineEarlyResolution(
   yesVotes: number,
   noVotes: number,
   eligibleVoters: number,
-  rules: GovernanceRules
-): EarlyResolutionResult {
-  // Handle sovereign_only FIRST before checking eligibleVoters
-  // This ensures decisive votes work even if eligibleVoters calculation has issues
+  rules: GovernanceRules,
+  votes: any[],
+  communityId: string,
+  supabaseClient: SupabaseClient,
+  lawType?: LawType,
+  proposalMetadata?: any
+): Promise<EarlyResolutionResult> {
+  // Special handling for CFC_ALLIANCE - requires both communities to approve
+  if (lawType === "CFC_ALLIANCE" && proposalMetadata?.target_community_id) {
+    const targetCommunityId = proposalMetadata.target_community_id;
+
+    // Get votes from both communities
+    const initiatorVotes: any[] = [];
+    const targetVotes: any[] = [];
+
+    for (const vote of votes) {
+      if (!vote.user_id) continue;
+
+      // Check which community this voter belongs to
+      const { data: initiatorMember } = await supabaseClient
+        .from("community_members")
+        .select("rank_tier")
+        .eq("community_id", communityId)
+        .eq("user_id", vote.user_id)
+        .maybeSingle();
+
+      if (initiatorMember) {
+        initiatorVotes.push({ ...vote, rank_tier: initiatorMember.rank_tier });
+        continue;
+      }
+
+      const { data: targetMember } = await supabaseClient
+        .from("community_members")
+        .select("rank_tier")
+        .eq("community_id", targetCommunityId)
+        .eq("user_id", vote.user_id)
+        .maybeSingle();
+
+      if (targetMember) {
+        targetVotes.push({ ...vote, rank_tier: targetMember.rank_tier });
+      }
+    }
+
+    // Get governance rules for both communities
+    const { data: targetCommunity } = await supabaseClient
+      .from("communities")
+      .select("governance_type")
+      .eq("id", targetCommunityId)
+      .single();
+
+    if (!targetCommunity) return {};
+
+    const targetRules = getGovernanceRules("CFC_ALLIANCE", targetCommunity.governance_type);
+
+    // Check if initiator community approved
+    let initiatorApproved = false;
+    let initiatorRejected = false;
+
+    if (rules.passingCondition === "sovereign_only") {
+      const sovereignVote = initiatorVotes.find(v => v.rank_tier === 0);
+      if (sovereignVote?.vote === "yes") initiatorApproved = true;
+      if (sovereignVote?.vote === "no") initiatorRejected = true;
+    }
+
+    // Check if target community approved
+    let targetApproved = false;
+    let targetRejected = false;
+
+    if (targetRules.passingCondition === "sovereign_only") {
+      const targetSovereignVote = targetVotes.find(v => v.rank_tier === 0);
+      if (targetSovereignVote?.vote === "yes") targetApproved = true;
+      if (targetSovereignVote?.vote === "no") targetRejected = true;
+    }
+
+    // Both communities must approve for alliance to pass
+    if (initiatorApproved && targetApproved) {
+      return {
+        status: "passed",
+        reason: "Both communities approved the alliance."
+      };
+    }
+
+    // If either community rejected, alliance is rejected
+    if (initiatorRejected || targetRejected) {
+      return {
+        status: "rejected",
+        reason: "One or both communities rejected the alliance."
+      };
+    }
+
+    return {};
+  }
+
+  // Handle sovereign_only for non-CFC laws
   if (rules.passingCondition === "sovereign_only") {
-    if (yesVotes >= 1) {
+    // Check if the sovereign (rank 0) has voted
+    let sovereignVote: "yes" | "no" | null = null;
+
+    for (const vote of votes) {
+      if (!vote.user_id) continue;
+
+      // Get the user's rank in the community
+      const { data: member } = await supabaseClient
+        .from("community_members")
+        .select("rank_tier")
+        .eq("community_id", communityId)
+        .eq("user_id", vote.user_id)
+        .maybeSingle();
+
+      if (member && member.rank_tier === 0) {
+        sovereignVote = vote.vote;
+        break;
+      }
+    }
+
+    if (sovereignVote === "yes") {
       return { status: "passed", reason: "Sovereign vote approved the law." };
     }
-    if (noVotes >= 1) {
+    if (sovereignVote === "no") {
       return { status: "rejected", reason: "Sovereign rejected the law." };
     }
     return {};
@@ -1078,16 +1167,16 @@ async function countEligibleVoters(
 async function getProposalVoteCounts(
   proposalId: string,
   supabaseClient: SupabaseClient
-): Promise<{ yesVotes: number; noVotes: number }> {
+): Promise<{ yesVotes: number; noVotes: number; votes: any[] }> {
   const { data: votes } = await supabaseClient
     .from("proposal_votes")
-    .select("vote")
+    .select("vote, user_id")
     .eq("proposal_id", proposalId);
 
   const yesVotes = votes?.filter((v: any) => v.vote === "yes").length || 0;
   const noVotes = votes?.filter((v: any) => v.vote === "no").length || 0;
 
-  return { yesVotes, noVotes };
+  return { yesVotes, noVotes, votes: votes || [] };
 }
 
 async function maybeResolveProposalEarly(
@@ -1130,16 +1219,28 @@ async function maybeResolveProposalEarly(
       return;
     }
 
-    const { yesVotes, noVotes } = await getProposalVoteCounts(
+    const { yesVotes, noVotes, votes } = await getProposalVoteCounts(
       proposalId,
       supabaseClient
     );
 
-    const resolution = determineEarlyResolution(
+    // Get proposal metadata for CFC alliance handling
+    const { data: proposalWithMetadata } = await supabaseClient
+      .from("community_proposals")
+      .select("metadata")
+      .eq("id", proposalId)
+      .single();
+
+    const resolution = await determineEarlyResolution(
       yesVotes,
       noVotes,
       eligibleVoters,
-      rules
+      rules,
+      votes,
+      proposal.community_id,
+      supabaseClient,
+      proposal.law_type as LawType,
+      proposalWithMetadata?.metadata
     );
 
     if (!resolution.status) {
@@ -1248,14 +1349,16 @@ export async function getCommunityActiveProposalsAction(communityId: string) {
   const supabase = await createSupabaseServerClient();
 
   try {
-    // Only fetch active (pending) proposals; resolved proposals are considered archived
+    // Fetch active proposals where:
+    // 1. This community created the proposal, OR
+    // 2. This community is the target of a CFC_ALLIANCE proposal
     const { data: proposals, error } = await supabase
       .from("community_proposals")
       .select(
         `*,
         users:proposer_id(username)`
       )
-      .eq("community_id", communityId)
+      .or(`community_id.eq.${communityId},and(law_type.eq.CFC_ALLIANCE,metadata->>target_community_id.eq.${communityId})`)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
 

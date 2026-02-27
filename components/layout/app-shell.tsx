@@ -18,6 +18,9 @@ import {
   CopyPlus,
   TrendingUp,
   Backpack,
+  ChevronUp,
+  PanelTopClose,
+  PanelTopOpen,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -98,8 +101,8 @@ function AppShellContent({ children, user }: AppShellProps) {
   const pathname = usePathname() ?? "/"
   const supabaseBrowser = React.useMemo(() => createSupabaseBrowserClient(), [])
 
-  // Stats Drawer State
-  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false)
+  // Stats Drawer State - Default to open for authenticated users
+  const [isDrawerOpen, setIsDrawerOpen] = React.useState(true)
   const hasMountedRef = React.useRef(false)
   const [isDrawerPinned, setIsDrawerPinned] = React.useState(false)
   const [lastScrollY, setLastScrollY] = React.useState(0)
@@ -112,8 +115,11 @@ function AppShellContent({ children, user }: AppShellProps) {
     const stored = getStoredDrawerState()
     if (stored !== null) {
       setIsDrawerOpen(stored)
+    } else if (user) {
+      // Default to open for authenticated users
+      setIsDrawerOpen(true)
     }
-  }, [])
+  }, [user])
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -296,9 +302,9 @@ function AppShellContent({ children, user }: AppShellProps) {
                 title={isDrawerOpen ? "Close drawer" : "Open drawer"}
               >
                 {isDrawerOpen ? (
-                  <CopyMinus className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                  <PanelTopClose className="h-5 w-5 text-blue-500 dark:text-blue-400" />
                 ) : (
-                  <CopyPlus className="h-5 w-5 text-amber-500 dark:text-blue-400" />
+                  <PanelTopOpen className="h-5 w-5 text-amber-500 dark:text-blue-400" />
                 )}
               </Button>
             )}
@@ -406,27 +412,27 @@ function AppShellContent({ children, user }: AppShellProps) {
       {/* Spacing for fixed navbar */}
       <div className="h-16" />
 
-      {!isMapPage && (
+      {!isMapPage && user && (
         <div className="hidden sm:block relative z-40">
           <StatsDrawer
             isOpen={isDrawerOpen}
             isPinned={isDrawerPinned}
             onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
             onTogglePin={() => setIsDrawerPinned(!isDrawerPinned)}
-            userId={user?.id}
+            userId={user.id}
             userAvatar={resolveAvatar({
-              avatarUrl: user?.avatarUrl,
-              seed: user?.username ?? "guest",
+              avatarUrl: user.avatarUrl,
+              seed: user.username ?? "guest",
             })}
-            userName={user?.username}
+            userName={user.username}
             energy={energy}
             energyCap={ENERGY_CAP}
             energyPerHour={ENERGY_REGEN_PER_HOUR}
-            lastTrainedAt={user?.lastTrainedAt}
-            mentalPower={user?.mentalPower}
-            morale={user?.morale}
-            strength={user?.strength}
-            currentMilitaryRank={user?.currentMilitaryRank}
+            lastTrainedAt={user.lastTrainedAt}
+            mentalPower={user.mentalPower}
+            morale={user.morale}
+            strength={user.strength}
+            currentMilitaryRank={user.currentMilitaryRank}
           />
         </div>
       )}

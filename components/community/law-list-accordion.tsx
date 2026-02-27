@@ -72,7 +72,7 @@ export function LawListAccordion({
           <div className="flex items-center gap-2">
             <p className={cn("text-sm font-semibold", headerTitleClass)}>Propose a Law</p>
             {isLeader && (
-              <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <Crown className={cn("h-4 w-4", isDarkMode ? "text-sky-400" : "text-amber-600")} />
             )}
           </div>
           <p className={cn("text-xs mt-1", headerDescriptionClass)}>
@@ -87,7 +87,9 @@ export function LawListAccordion({
           className={cn(
             "h-5 w-5 transition-all duration-300 flex-shrink-0",
             isLeader
-              ? "text-amber-600 dark:text-amber-400 group-hover:translate-y-0.5"
+              ? isDarkMode
+                ? "text-sky-400 group-hover:translate-y-0.5"
+                : "text-amber-600 group-hover:translate-y-0.5"
               : "text-muted-foreground",
             isExpanded && "rotate-180"
           )}
@@ -170,10 +172,10 @@ export function LawListAccordion({
               </p>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Only the <span className="font-bold text-amber-600 dark:text-amber-400">King</span> or{" "}
-              <span className="font-bold text-amber-600 dark:text-amber-400">Minister</span> can propose laws.
+              Only the <span className={cn("font-bold", isDarkMode ? "text-sky-400" : "text-amber-600")}>King</span> or{" "}
+              <span className={cn("font-bold", isDarkMode ? "text-sky-400" : "text-amber-600")}>Minister</span> can propose laws.
               <span className="block mt-2 text-slate-700 dark:text-slate-300">
-                Rise through the ranks, seize leadership, and shape your community’s destiny. The throne awaits the worthy.
+                Rise through the ranks, seize leadership, and shape your community's destiny. The throne awaits the worthy.
               </span>
             </p>
           </div>

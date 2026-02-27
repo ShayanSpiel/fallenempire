@@ -38,6 +38,7 @@ type CommentJoinRow = {
     username: string | null;
     identity_label: string | null;
     avatar_url: string | null;
+    user_tier?: string | null;
   } | null;
 };
 
@@ -94,6 +95,7 @@ type FeedProfileRow = {
   username: string | null;
   identity_label: string | null;
   avatar_url: string | null;
+  user_tier?: string | null;
 };
 
 export const metadata: Metadata = {
@@ -115,7 +117,7 @@ export default async function FeedPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("id, username, identity_label, avatar_url")
+    .select("id, username, identity_label, avatar_url, user_tier")
     .eq("auth_id", user.id)
     .maybeSingle<FeedProfileRow>();
 
@@ -194,7 +196,7 @@ export default async function FeedPage() {
         user_id,
         feed_type,
         community_id,
-        user:users(id, username, identity_label, is_bot, avatar_url),
+        user:users(id, username, identity_label, is_bot, avatar_url, user_tier),
         post_reactions(
           id,
           user_id,
@@ -323,6 +325,7 @@ export default async function FeedPage() {
     username: profile.username,
     identityLabel: profile.identity_label,
     avatarUrl: profile.avatar_url ?? null,
+    userTier: (profile.user_tier as "alpha" | "sigma" | "omega" | null) ?? null,
   };
 
   // Fetch missions

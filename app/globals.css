@@ -185,6 +185,68 @@
   --tab-button-radius: var(--button-radius);
 }
 
+.discord-dark {
+  --font-sans: var(--font-oxanium, "Oxanium", system-ui, sans-serif);
+  --font-display: var(--font-oxanium, "Oxanium", system-ui, sans-serif);
+  --font-mono: var(--font-oxanium, "Oxanium", system-ui, sans-serif);
+  --font-nav: var(--font-oxanium, "Oxanium", system-ui, sans-serif);
+  --font-scoreboard: var(--font-oxanium, "Oxanium", system-ui, sans-serif);
+  --font-pixelated: var(--font-micro5, "Micro 5", "Space Mono", monospace);
+
+  /* Discord-like neutral dark theme */
+  --background: #313338;
+  --foreground: #f2f3f5;
+  --card: #2b2d31;
+  --card-foreground: #f2f3f5;
+  --popover: #2b2d31;
+  --popover-foreground: #f2f3f5;
+  --primary: #5865f2;
+  --primary-foreground: #ffffff;
+  --secondary: #4e5058;
+  --secondary-foreground: #f2f3f5;
+  --muted: #1e1f22;
+  --muted-foreground: #b5bac1;
+  --accent: #5865f2;
+  --accent-foreground: #ffffff;
+  --destructive: #f23f42;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: #1e1f22;
+  --ring: #5865f2;
+  --chart-1: #5865f2;
+  --chart-2: #7289da;
+  --chart-3: #99aab5;
+  --chart-4: #4e5058;
+  --chart-5: #36393f;
+  --radius: 0.5rem;
+  --sidebar: #2b2d31;
+  --sidebar-foreground: #f2f3f5;
+  --sidebar-primary: #5865f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #404249;
+  --sidebar-accent-foreground: #f2f3f5;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #5865f2;
+  --nav-background: #2b2d31;
+  --nav-foreground: #f2f3f5;
+  --nav-active-background: #404249;
+  --nav-active-foreground: #ffffff;
+  --link: #00a8fc;
+  --link-hover: #5865f2;
+  --surface-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+  --success: #23a559;
+  --success-foreground: #ffffff;
+  --info: #b5bac1;
+  --info-foreground: #1e1f22;
+  --warning: #f0b232;
+  --warning-foreground: #1e1f22;
+  --neutral: #b5bac1;
+  --neutral-foreground: #1e1f22;
+  --overlay-dark: rgba(0, 0, 0, 0.85);
+  --overlay-light: rgba(0, 0, 0, 0.6);
+  --tab-button-radius: var(--button-radius);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { memo } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { RankDisplay } from '@/components/ui/rank-display';
-import { resolveAvatar } from '@/lib/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { UserNameDisplay } from '@/components/ui/user-name-display';
+import { type UserTier } from '@/components/ui/verification-badge';
 import { componentSpacing, leaderboardStyles, semanticColors, typography } from '@/lib/design-system';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ interface LeaderboardCardProps {
   rank: number;
   username: string;
   avatarUrl: string | null;
+  userTier?: UserTier | null;
   militaryRank: string;
   militaryScore: number;
   level?: number;
@@ -31,6 +33,7 @@ function LeaderboardCardComponent({
   rank,
   username,
   avatarUrl,
+  userTier,
   militaryRank,
   militaryScore,
   level,
@@ -61,18 +64,21 @@ function LeaderboardCardComponent({
       </div>
 
       <div className="flex-1 flex items-center gap-3 min-w-0">
-        <Avatar className={cn('w-10 h-10 rounded-lg border border-border/60 bg-background')}>
-          <AvatarImage
-            src={resolveAvatar({ avatarUrl, seed: username })}
-            alt={username}
-          />
-          <AvatarFallback>{username?.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          username={username}
+          avatarUrl={avatarUrl}
+          size="md"
+          className="rounded-lg border border-border/60 bg-background"
+        />
 
         <div className="flex-1 min-w-0">
-          <div className={cn(typography.headingMd.size, typography.headingMd.weight, semanticColors.text.primary, "truncate")}>
-            {username}
-          </div>
+          <UserNameDisplay
+            username={username}
+            userTier={userTier}
+            showLink={false}
+            badgeSize="sm"
+            className={cn(typography.headingMd.size, typography.headingMd.weight, semanticColors.text.primary, "truncate")}
+          />
           <div className={cn(typography.bodySm.size, semanticColors.text.secondary)}>
             {tabType === 'level'
               ? `${(totalXp || 0).toLocaleString()} XP`

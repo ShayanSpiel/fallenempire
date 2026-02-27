@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { MilitaryService } from "@/components/profile/military-service";
 import { AvatarUpload } from "@/components/profile/avatar-upload";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { cn } from "@/lib/utils";
 import { borders, layout } from "@/lib/design-system";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -383,7 +384,13 @@ export function ProfileView({
                 <div className="flex flex-col md:flex-row items-top justify-between gap-3 w-full">
                   <div className="w-full text-center md:text-left">
                     <h1 className="text-3xl font-extrabold text-foreground tracking-tight text-center md:text-left">
-                      {profile.username ?? "Anonymous"}
+                      <UserNameDisplay
+                        username={profile.username ?? "Anonymous"}
+                        userTier={profile.user_tier ?? "alpha"}
+                        showLink={false}
+                        badgeSize="md"
+                        className="inline-flex"
+                      />
                     </h1>
                     <IdentityLabel
                       label={profile.identity_label ?? "Unclassified Entity"}

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Crown, UserCog, Plus, Loader2 } from "lucide-react";
 import { borders } from "@/lib/design-system";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,7 @@ interface HierarchyMember {
   user_id: string;
   username: string;
   avatar_url?: string | null;
+  user_tier?: string | null;
   rank_tier: number;
 }
 
@@ -200,16 +203,23 @@ export function GovernanceHierarchy({
             {sovereign ? (
               <div className="flex flex-col items-center gap-3 sm:gap-4">
                 <div className="relative">
-                  <Avatar className="h-12 sm:h-16 w-12 sm:w-16">
-                    <AvatarImage src={sovereign.avatar_url || undefined} alt={sovereign.username} />
-                    <AvatarFallback>{sovereign.username.slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    username={sovereign.username}
+                    avatarUrl={sovereign.avatar_url}
+                    size="xl"
+                  />
                   <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-amber-400 dark:from-sky-500 dark:to-sky-400 rounded-full p-1.5 shadow-md dark:shadow-sky-500/30 shadow-amber-500/30">
                     <Crown className="h-4 w-4 text-white" />
                   </div>
                 </div>
                 <div className="text-center">
-                  <p className="font-semibold text-xs sm:text-sm">{sovereign.username}</p>
+                  <UserNameDisplay
+                    username={sovereign.username}
+                    userTier={sovereign.user_tier as "alpha" | "sigma" | "omega" | null}
+                    showLink={false}
+                    badgeSize="sm"
+                    className="font-semibold text-xs sm:text-sm"
+                  />
                   <p className="text-[10px] sm:text-xs text-muted-foreground">
                     {config.roles[0]?.label}
                   </p>
@@ -276,15 +286,18 @@ export function GovernanceHierarchy({
                     >
                       {assignedMember ? (
                         <>
-                          <Avatar className="h-10 sm:h-12 w-10 sm:w-12">
-                            <AvatarImage src={assignedMember.avatar_url || undefined} alt={assignedMember.username} />
-                            <AvatarFallback>
-                              {assignedMember.username.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <p className="text-[10px] sm:text-xs font-semibold text-center line-clamp-1">
-                            {assignedMember.username}
-                          </p>
+                          <UserAvatar
+                            username={assignedMember.username}
+                            avatarUrl={assignedMember.avatar_url}
+                            size="lg"
+                          />
+                          <UserNameDisplay
+                            username={assignedMember.username}
+                            userTier={assignedMember.user_tier as "alpha" | "sigma" | "omega" | null}
+                            showLink={false}
+                            badgeSize="xs"
+                            className="text-[10px] sm:text-xs font-semibold text-center line-clamp-1"
+                          />
                           {isUserSovereign && (
                             <div className="flex w-full flex-col space-y-1">
                               <Button

@@ -15,6 +15,7 @@ type FeedTabsWrapperProps = {
     username: string | null;
     identityLabel: string | null;
     avatarUrl: string | null;
+    userTier?: "alpha" | "sigma" | "omega" | null;
   };
   userCommunities: Array<{ id: string; name: string; slug: string | null }>;
   userCommunityIds: string[];

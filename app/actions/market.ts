@@ -802,6 +802,7 @@ export async function getP2PExchangeContext() {
       .maybeSingle();
 
     return {
+      userId,
       userGold: goldWallet?.gold_coins || 0,
       userHex: userData?.current_hex || null,
       userHexCustomName: regionData?.custom_name || regionData?.province_name || null,

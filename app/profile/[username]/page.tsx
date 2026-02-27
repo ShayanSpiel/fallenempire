@@ -69,7 +69,7 @@ export default async function UsernameProfilePage({ params }: ProfilePageProps) 
   const { data: profile } = await supabase
     .from("users")
     .select(
-      "id, username, identity_label, identity_json, freewill, coherence, power_mental, power_physical, avatar_url, banner_url, main_community_id, created_at, total_xp, energy, morale, is_bot, current_military_rank, military_rank_score, total_damage_dealt, battles_fought, battles_won, highest_damage_battle, win_streak"
+      "id, username, identity_label, user_tier, identity_json, freewill, coherence, power_mental, power_physical, avatar_url, banner_url, main_community_id, created_at, total_xp, energy, morale, is_bot, current_military_rank, military_rank_score, total_damage_dealt, battles_fought, battles_won, highest_damage_battle, win_streak"
     )
     .eq("username", username)
     .maybeSingle();

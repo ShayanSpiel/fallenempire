@@ -29,7 +29,7 @@ interface LawProposalDrawerProps {
   lawType?: LawType;
   proposalId?: string; // If viewing existing proposal
   communityColor?: string | null;
-  onProposalCreated?: () => void;
+  onProposalCreated?: (proposalId?: string) => void;
 }
 
 interface ProposalData {
@@ -50,6 +50,7 @@ interface ProposalData {
 type ProposalVoteRow = {
   vote: string | null;
   user_id: string | null;
+  community_id?: string | null; // For CFC alliances, tracks which community the voter belongs to
   user?: {
     username?: string | null;
   } | null;
@@ -150,9 +151,16 @@ export function LawProposalDrawer({
   const rules = currentLawType && definition ? getGovernanceRules(currentLawType, governanceType) : null;
 
   // Load proposal data if viewing existing
-  const loadProposal = useCallback(async () => {
+  const loadProposal = useCallback(async (forceReload = false) => {
     const idToLoad = selectedProposalId || proposalId;
     if (!idToLoad) return;
+
+    // Don't reload if we already have data for this proposal and not forcing reload
+    if (!forceReload && proposalData && proposalData.id === idToLoad) {
+      console.log("[LawProposalDrawer] Skipping reload - data already loaded for:", idToLoad);
+      return;
+    }
+
     console.log("[LawProposalDrawer] Loading proposal:", idToLoad);
 
     setIsProposalLoading(true);
@@ -226,6 +234,7 @@ export function LawProposalDrawer({
             : null;
 
       let userMap: Record<string, string> = {};
+      let communityMap: Record<string, string> = {};
       const uniqueUserIds = Array.from(
         new Set(voteRows.map((row) => row.user_id).filter(Boolean))
       ) as string[];
@@ -244,10 +253,43 @@ export function LawProposalDrawer({
             return acc;
           }, {} as Record<string, string>);
         }
+
+        // For CFC alliances, determine which community each voter belongs to
+        if (data.law_type === "CFC_ALLIANCE" && baseMetadata.target_community_id) {
+          const initiatorCommunityId = data.community_id;
+          const targetCommunityId = baseMetadata.target_community_id;
+
+          // Check initiator community memberships
+          const { data: initiatorMembers } = await supabase
+            .from("community_members")
+            .select("user_id")
+            .eq("community_id", initiatorCommunityId)
+            .in("user_id", uniqueUserIds);
+
+          if (initiatorMembers) {
+            initiatorMembers.forEach((m: any) => {
+              if (m.user_id) communityMap[m.user_id] = initiatorCommunityId;
+            });
+          }
+
+          // Check target community memberships
+          const { data: targetMembers } = await supabase
+            .from("community_members")
+            .select("user_id")
+            .eq("community_id", targetCommunityId)
+            .in("user_id", uniqueUserIds);
+
+          if (targetMembers) {
+            targetMembers.forEach((m: any) => {
+              if (m.user_id) communityMap[m.user_id] = targetCommunityId;
+            });
+          }
+        }
       }
 
       const voteRowsWithUsers = voteRows.map((row) => ({
         ...row,
+        community_id: row.user_id ? communityMap[row.user_id] : undefined,
         user:
           row.user ??
           (row.user_id && userMap[row.user_id]
@@ -436,11 +478,17 @@ export function LawProposalDrawer({
 
   const handleReviewProposal = useCallback(async () => {
     if (!successProposalId) return;
+
+    // Close the success modal and entire modal
     setShowSuccessModal(false);
-    setSelectedProposalId(successProposalId);
-    // Wait a tick to allow state to update
-    await new Promise(resolve => setTimeout(resolve, 0));
-  }, [successProposalId]);
+    onOpenChange(false);
+
+    // Wait for modal to close smoothly
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    // Notify parent to reopen with the created proposal
+    onProposalCreated?.(successProposalId);
+  }, [successProposalId, onOpenChange, onProposalCreated]);
 
   const handleVote = async (vote: "yes" | "no") => {
     const idToVoteOn = selectedProposalId || proposalId;
@@ -454,7 +502,7 @@ export function LawProposalDrawer({
       setHasVoted(true);
       setCurrentVote(vote);
       setVoteInProgress(null); // Clear loading state immediately after vote
-      await loadProposal();
+      await loadProposal(true); // Force reload after voting to get updated vote counts
       showGovernanceToast(`Vote Recorded: ${vote.toUpperCase()}`, "success");
       onProposalCreated?.();
     } catch (err) {
@@ -817,7 +865,7 @@ export function LawProposalDrawer({
                   </div>
                 ) : null}
 
-                {proposalData.status === "pending" && (
+                {proposalData.status === "pending" && proposalData.law_type !== "CFC_ALLIANCE" && (
                   <div className="space-y-2 border-t border-border/30 pt-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Votes</span>
@@ -833,7 +881,112 @@ export function LawProposalDrawer({
                     </div>
                   </div>
                 )}
-                <div className="grid sm:grid-cols-2 gap-4 border-t border-border/30 pt-4">
+
+                {/* Dual table for CFC Alliance votes */}
+                {proposalData.law_type === "CFC_ALLIANCE" && proposalData.metadata?.target_community_id && (
+                  <div className="space-y-3 border-t border-border/30 pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Mutual Approval Required - Both Communities Must Vote Yes
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {/* Initiator Community Votes */}
+                      <div className="space-y-2 p-3 rounded-lg border border-border/40 bg-muted/20">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          {proposalData.metadata.target_community_name ? `Initiator Community` : "Your Community"}
+                        </p>
+                        {(() => {
+                          const initiatorVotes = voteRows.filter(row => row.community_id === proposalData.community_id);
+                          const initiatorYes = initiatorVotes.filter(row => row.vote === "yes");
+                          const initiatorNo = initiatorVotes.filter(row => row.vote === "no");
+                          return (
+                            <>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                                  Yes ({initiatorYes.length})
+                                </p>
+                                {initiatorYes.length > 0 ? (
+                                  initiatorYes.map((row, idx) => (
+                                    <div key={`init-yes-${row.user_id ?? idx}`} className="flex items-center gap-1.5 text-xs">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                      <span className="truncate">{getVoterLabel(row)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">None</p>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase text-destructive">
+                                  No ({initiatorNo.length})
+                                </p>
+                                {initiatorNo.length > 0 ? (
+                                  initiatorNo.map((row, idx) => (
+                                    <div key={`init-no-${row.user_id ?? idx}`} className="flex items-center gap-1.5 text-xs">
+                                      <XCircle className="h-3 w-3 text-destructive flex-shrink-0" />
+                                      <span className="truncate">{getVoterLabel(row)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">None</p>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Target Community Votes */}
+                      <div className="space-y-2 p-3 rounded-lg border border-border/40 bg-muted/20">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          {proposalData.metadata.target_community_name || "Target Community"}
+                        </p>
+                        {(() => {
+                          const targetVotes = voteRows.filter(row => row.community_id === proposalData.metadata.target_community_id);
+                          const targetYes = targetVotes.filter(row => row.vote === "yes");
+                          const targetNo = targetVotes.filter(row => row.vote === "no");
+                          return (
+                            <>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                                  Yes ({targetYes.length})
+                                </p>
+                                {targetYes.length > 0 ? (
+                                  targetYes.map((row, idx) => (
+                                    <div key={`target-yes-${row.user_id ?? idx}`} className="flex items-center gap-1.5 text-xs">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                      <span className="truncate">{getVoterLabel(row)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">None</p>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase text-destructive">
+                                  No ({targetNo.length})
+                                </p>
+                                {targetNo.length > 0 ? (
+                                  targetNo.map((row, idx) => (
+                                    <div key={`target-no-${row.user_id ?? idx}`} className="flex items-center gap-1.5 text-xs">
+                                      <XCircle className="h-3 w-3 text-destructive flex-shrink-0" />
+                                      <span className="truncate">{getVoterLabel(row)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground">None</p>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Regular vote display for non-CFC laws */}
+                {proposalData.law_type !== "CFC_ALLIANCE" && (
+                  <div className="grid sm:grid-cols-2 gap-4 border-t border-border/30 pt-4">
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Yes Voters
@@ -875,6 +1028,7 @@ export function LawProposalDrawer({
                     </div>
                   </div>
                 </div>
+                )}
 
                 {proposalData.status === "passed" && (
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400 border-t border-border/30 pt-3">
@@ -893,7 +1047,7 @@ export function LawProposalDrawer({
             )}
 
             {/* Law-specific inputs (Propose mode) */}
-            {!proposalId && lawType === "DECLARE_WAR" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "DECLARE_WAR" && colors && (
               <div className={cn("space-y-3 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Target Community
@@ -947,7 +1101,7 @@ export function LawProposalDrawer({
             )}
 
             {/* PROPOSE_HEIR - Select heir */}
-            {!proposalId && lawType === "PROPOSE_HEIR" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "PROPOSE_HEIR" && colors && (
               <div className={cn("space-y-3 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Select Heir
@@ -1001,7 +1155,7 @@ export function LawProposalDrawer({
             )}
 
             {/* CHANGE_GOVERNANCE - Select governance type */}
-            {!proposalId && lawType === "CHANGE_GOVERNANCE" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "CHANGE_GOVERNANCE" && colors && (
               <div className={cn("space-y-3 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   New Governance Type
@@ -1039,7 +1193,7 @@ export function LawProposalDrawer({
             )}
 
             {/* MESSAGE_OF_THE_DAY - Post announcement */}
-            {!proposalId && lawType === "MESSAGE_OF_THE_DAY" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "MESSAGE_OF_THE_DAY" && colors && (
               <div className={cn("space-y-3 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Announcement Title
@@ -1095,7 +1249,7 @@ export function LawProposalDrawer({
             )}
 
             {/* WORK_TAX - Set tax rate */}
-            {!proposalId && lawType === "WORK_TAX" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "WORK_TAX" && colors && (
               <div className={cn("space-y-4 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1176,7 +1330,7 @@ export function LawProposalDrawer({
             )}
 
             {/* IMPORT_TARIFF - Set tariff rate */}
-            {!proposalId && lawType === "IMPORT_TARIFF" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "IMPORT_TARIFF" && colors && (
               <div className={cn("space-y-4 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1350,7 +1504,7 @@ export function LawProposalDrawer({
             )}
 
             {/* CFC_ALLIANCE - Select community to ally with */}
-            {!proposalId && lawType === "CFC_ALLIANCE" && colors && (
+            {!proposalId && !selectedProposalId && lawType === "CFC_ALLIANCE" && colors && (
               <div className={cn("space-y-3 p-4 rounded-lg border", colors.bgLight, colors.borderLight)}>
                 <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Select Community to Ally With

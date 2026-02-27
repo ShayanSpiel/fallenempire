@@ -2,15 +2,17 @@
 
 import React from "react";
 import { getUserCommunityId, getUserInventory } from "@/app/actions/economy";
-import type { InventoryByCategory } from "@/lib/types/economy";
+import type { InventoryByCategory, WalletDisplay } from "@/lib/types/economy";
 import { PageSection } from "@/components/layout/page-section";
 import { InventoryGrid } from "./inventory-grid";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { H1, P } from "@/components/ui/typography";
+import { GoldCoinIcon, CommunityCoinIcon } from "@/components/ui/coin-icon";
 
 interface InventoryPageClientProps {
   userId: string;
+  initialWallet: WalletDisplay | null;
 }
 
 function InventoryGridSkeleton() {
@@ -67,11 +69,14 @@ function InventoryGridSkeleton() {
   );
 }
 
-export function InventoryPageClient({ userId }: InventoryPageClientProps) {
+export function InventoryPageClient({ userId, initialWallet }: InventoryPageClientProps) {
   const [inventory, setInventory] = React.useState<InventoryByCategory[] | null>(null);
   const [communityId, setCommunityId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Debug logging
+  console.log("[InventoryPageClient] Initial wallet:", JSON.stringify(initialWallet, null, 2));
 
   React.useEffect(() => {
     let mounted = true;
@@ -117,13 +122,39 @@ export function InventoryPageClient({ userId }: InventoryPageClientProps) {
 
   return (
     <PageSection>
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div className="space-y-2">
           <H1>Inventory</H1>
           <P className="max-w-2xl font-medium">
             Your personal raw materials and products.
           </P>
         </div>
+
+        {/* Wallet Bar - Displayed Instantly */}
+        {initialWallet && (
+          <div className="flex items-center gap-4 px-4 py-3 rounded-lg border border-border bg-card/50">
+            <div className="flex items-center gap-2">
+              <GoldCoinIcon className="h-5 w-5" />
+              <span className="text-base font-bold font-mono text-foreground">
+                {initialWallet.goldCoins.toFixed(0)}
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">Gold</span>
+            </div>
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <CommunityCoinIcon
+                className="h-5 w-5"
+                color={initialWallet.communityWallets[0]?.communityColor || undefined}
+              />
+              <span className="text-base font-bold font-mono text-foreground">
+                {initialWallet.communityWallets[0]?.amount.toFixed(0) ?? '0'}
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                {initialWallet.communityWallets[0]?.currencyName ?? 'Local Currency'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {isLoading && <InventoryGridSkeleton />}
 
@@ -142,7 +173,11 @@ export function InventoryPageClient({ userId }: InventoryPageClientProps) {
         )}
 
         {!isLoading && !error && inventory && (
-          <InventoryGrid inventory={inventory} communityId={communityId} />
+          <InventoryGrid
+            inventory={inventory}
+            communityId={communityId}
+            wallet={initialWallet}
+          />
         )}
       </div>
     </PageSection>

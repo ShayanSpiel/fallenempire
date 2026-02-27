@@ -20,8 +20,8 @@ type CommentJoinRow = {
   is_agent: boolean;
   post_id: string;
   user:
-    | { id: string; username: string | null; identity_label: string | null; avatar_url: string | null }
-    | { id: string; username: string | null; identity_label: string | null; avatar_url: string | null }[]
+    | { id: string; username: string | null; identity_label: string | null; avatar_url: string | null; user_tier?: string | null }
+    | { id: string; username: string | null; identity_label: string | null; avatar_url: string | null; user_tier?: string | null }[]
     | null;
 };
 
@@ -70,7 +70,7 @@ async function getFeedPostsFallback({
         user_id,
         feed_type,
         community_id,
-        user:users(id, username, identity_label, is_bot, avatar_url),
+        user:users(id, username, identity_label, is_bot, avatar_url, user_tier),
         post_reactions(
           id,
           user_id,

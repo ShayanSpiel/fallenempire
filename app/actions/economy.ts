@@ -65,33 +65,89 @@ export async function getUserWallet(
     )
     .eq("user_id", targetUserId);
 
-  if (error || !wallets) {
+  if (error) {
     console.error("Error fetching wallets:", error);
     return null;
   }
 
   // Separate gold and community wallets
-  const goldWallet = wallets.find((w) => w.currency_type === "gold");
-  const communityWallets = wallets.filter(
+  const goldWallet = wallets?.find((w) => w.currency_type === "gold");
+  const communityWallets = wallets?.filter(
     (w) => w.currency_type === "community"
-  );
+  ) || [];
+
+  const communityWalletData = communityWallets.map((w) => {
+    const community = Array.isArray(w.community_currency?.communities)
+      ? w.community_currency?.communities[0]
+      : w.community_currency?.communities;
+
+    return {
+      currencyId: w.community_currency_id!,
+      currencyName: w.community_currency?.currency_name || "Unknown",
+      currencySymbol: w.community_currency?.currency_symbol || "?",
+      amount: w.community_coins || 0,
+      exchangeRate: w.community_currency?.exchange_rate_to_gold || 1,
+      communityColor: community?.color || null,
+    };
+  });
+
+  // If no community wallet exists, try to get the user's community currency info
+  if (communityWalletData.length === 0) {
+    console.log("[getUserWallet] No community wallet found, fetching from membership for userId:", targetUserId);
+
+    // Get user's community membership
+    const { data: membership, error: membershipError } = await supabase
+      .from("community_members")
+      .select(`
+        community:communities!inner(
+          id,
+          color,
+          community_currencies(
+            id,
+            currency_name,
+            currency_symbol,
+            exchange_rate_to_gold
+          )
+        )
+      `)
+      .eq("user_id", targetUserId)
+      .is("left_at", null)
+      .maybeSingle();
+
+    console.log("[getUserWallet] Membership query result:", { membership, error: membershipError });
+
+    if (membership?.community) {
+      const community = Array.isArray(membership.community)
+        ? membership.community[0]
+        : membership.community;
+
+      const currency = Array.isArray(community.community_currencies)
+        ? community.community_currencies[0]
+        : community.community_currencies;
+
+      console.log("[getUserWallet] Extracted currency:", currency);
+
+      if (currency) {
+        communityWalletData.push({
+          currencyId: currency.id,
+          currencyName: currency.currency_name,
+          currencySymbol: currency.currency_symbol,
+          amount: 0, // User has no balance yet
+          exchangeRate: currency.exchange_rate_to_gold || 1,
+          communityColor: community.color || null,
+        });
+      }
+    }
+  }
+
+  console.log("[getUserWallet] Final wallet data:", {
+    goldCoins: goldWallet?.gold_coins || 0,
+    communityWallets: communityWalletData,
+  });
 
   return {
     goldCoins: goldWallet?.gold_coins || 0,
-    communityWallets: communityWallets.map((w) => {
-      const community = Array.isArray(w.community_currency?.communities)
-        ? w.community_currency?.communities[0]
-        : w.community_currency?.communities;
-
-      return {
-        currencyId: w.community_currency_id!,
-        currencyName: w.community_currency?.currency_name || "Unknown",
-        currencySymbol: w.community_currency?.currency_symbol || "?",
-        amount: w.community_coins,
-        exchangeRate: w.community_currency?.exchange_rate_to_gold || 1,
-        communityColor: community?.color || null,
-      };
-    }),
+    communityWallets: communityWalletData,
   };
 }
 
@@ -409,6 +465,16 @@ const INVENTORY_CATEGORY_OVERRIDES: Record<
   oil: "raw_material",
 };
 
+// Sort order for resources within categories
+const RESOURCE_SORT_ORDER: Record<string, number> = {
+  food: 1,
+  weapon: 2,
+  ticket: 3,
+  grain: 4,
+  iron: 5,
+  oil: 6,
+};
+
 function normalizeInventoryCategories(data: any[]): InventoryByCategory[] {
   const grouped: Record<InventoryByCategory["category"], InventoryItem[]> = {
     raw_material: [],
@@ -428,6 +494,22 @@ function normalizeInventoryCategories(data: any[]): InventoryByCategory[] {
 
       grouped[normalized].push(item);
     }
+  }
+
+  // Sort items within each category
+  for (const category of Object.keys(grouped) as InventoryByCategory["category"][]) {
+    grouped[category].sort((a, b) => {
+      // First, sort by resource type (food, weapon, ticket, etc.)
+      const resourceOrderA = RESOURCE_SORT_ORDER[a.resource_key] ?? 999;
+      const resourceOrderB = RESOURCE_SORT_ORDER[b.resource_key] ?? 999;
+
+      if (resourceOrderA !== resourceOrderB) {
+        return resourceOrderA - resourceOrderB;
+      }
+
+      // Within same resource type, sort by quality level (descending - highest quality first)
+      return (b.quality_level ?? 0) - (a.quality_level ?? 0);
+    });
   }
 
   return INVENTORY_CATEGORY_ORDER.map((category) => ({

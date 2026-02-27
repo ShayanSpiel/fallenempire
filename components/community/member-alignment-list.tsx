@@ -10,7 +10,6 @@
 
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { DualSpectrumBar } from '@/components/ui/dual-spectrum-bar'
 import { ChevronDown, Info, ChevronRight } from 'lucide-react'
@@ -18,6 +17,8 @@ import { cardStyles, typography } from '@/lib/design-system'
 import { cn } from '@/lib/utils'
 import { IDEOLOGY_ACCORDION_RADIUS_CLASS } from './ideology-style'
 import { getMemberAlignment } from '@/app/actions/ideology'
+import { UserAvatar } from '@/components/ui/user-avatar'
+import { UserNameDisplay } from '@/components/ui/user-name-display'
 
 /**
  * Member Alignment List Component - REDESIGNED
@@ -33,6 +34,7 @@ interface Member {
   user_id: string
   username: string | null
   avatar_url: string | null
+  user_tier?: string | null
   rank_tier: number
   alignmentScore: number
   distance: number
@@ -161,15 +163,20 @@ export function MemberAlignmentList({
                 {/* Header Row - Avatar, Name, Rank, and Alignment */}
                 <div className="flex items-center gap-3 justify-between">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Avatar className={cn('flex-shrink-0 size-10')}>
-                      {member.avatar_url && (
-                        <AvatarImage src={member.avatar_url} alt={member.username ?? 'Member'} />
-                      )}
-                      <AvatarFallback>{(member.username ?? 'M').charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      username={member.username ?? 'Member'}
+                      avatarUrl={member.avatar_url}
+                      size="md"
+                    />
 
                     <div className="min-w-0 flex-1">
-                      <p className={cn('text-sm font-semibold truncate')}>{member.username ?? 'Unknown'}</p>
+                      <UserNameDisplay
+                        username={member.username ?? 'Unknown'}
+                        userTier={member.user_tier as "alpha" | "sigma" | "omega" | null}
+                        showLink={false}
+                        badgeSize="xs"
+                        className="text-sm font-semibold truncate"
+                      />
                       <span className={cn('inline-block px-2 py-0.5 rounded text-xs font-medium mt-1', getRankColor(member.rank_tier))}>
                         {getRankLabel(member.rank_tier)}
                       </span>

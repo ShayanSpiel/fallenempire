@@ -12,6 +12,7 @@ import { H1, P } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { getCommunityAvatarUrl } from "@/lib/community-visuals";
 import { getP2PExchangeContext } from "@/app/actions/market";
+import { CommunityCoinIcon } from "@/components/ui/coin-icon";
 
 import { MarketTab } from "@/components/market/market-tab";
 import { JobsTab } from "@/components/market/jobs-tab";
@@ -67,6 +68,11 @@ export function MarketView({ communityCurrencies }: MarketViewProps) {
   const communityLookup = useMemo(
     () => new Map(communities.map((community) => [community.id, community])),
     [communities]
+  );
+
+  const currencyLookup = useMemo(
+    () => new Map(communityCurrencies.map((currency) => [currency.community_id, currency])),
+    [communityCurrencies]
   );
 
   const communitySearchResults = useMemo(() => {
@@ -228,6 +234,7 @@ export function MarketView({ communityCurrencies }: MarketViewProps) {
                       const community = communityLookup.get(communityId);
                       // Only render if we have the community data
                       if (!community) return null;
+                      const currency = currencyLookup.get(communityId);
                       const initial = community.name?.[0] ?? "C";
                       const avatarUrl = buildCommunityAvatarUrl(community, communityId);
                       return (
@@ -244,8 +251,16 @@ export function MarketView({ communityCurrencies }: MarketViewProps) {
                               {initial}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="max-w-[100px] truncate text-[11px] font-semibold">
-                            {community.name}
+                          <span className="flex items-center gap-1 text-[11px] font-semibold max-w-[120px]">
+                            <span className="truncate">{community.name}</span>
+                            {currency && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
+                                <span>(</span>
+                                <CommunityCoinIcon className="h-3 w-3" color={community.color || undefined} />
+                                <span>{currency.currency_symbol}</span>
+                                <span>)</span>
+                              </span>
+                            )}
                           </span>
                           <button
                             type="button"
@@ -291,35 +306,48 @@ export function MarketView({ communityCurrencies }: MarketViewProps) {
                 <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border bg-card shadow-lg">
                   <div className="max-h-56 overflow-y-auto">
                     {communitySearchResults.length > 0 ? (
-                      communitySearchResults.map((community) => (
-                        <button
-                          key={community.id}
-                          type="button"
-                          onClick={() => toggleCommunitySelection(community.id)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-none px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70",
-                            selectedCommunities.includes(community.id) && "bg-muted/60"
-                          )}
-                        >
-                          <Avatar className="h-7 w-7 rounded-lg border border-border bg-card">
-                            <AvatarImage
-                              src={buildCommunityAvatarUrl(community, community.id)}
-                              alt={`${community.name ?? "Community"} avatar`}
-                            />
-                            <AvatarFallback className="rounded-lg text-[10px]">
-                              {community.name?.[0] ?? "C"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate">{community.name}</span>
-                          <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-md border border-border/60 text-muted-foreground">
-                            {selectedCommunities.includes(community.id) ? (
-                              <Minus className="h-3.5 w-3.5" />
-                            ) : (
-                              <Plus className="h-3.5 w-3.5" />
+                      communitySearchResults.map((community) => {
+                        const currency = currencyLookup.get(community.id);
+                        return (
+                          <button
+                            key={community.id}
+                            type="button"
+                            onClick={() => toggleCommunitySelection(community.id)}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-none px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70",
+                              selectedCommunities.includes(community.id) && "bg-muted/60"
                             )}
-                          </span>
-                        </button>
-                      ))
+                          >
+                            <Avatar className="h-7 w-7 rounded-lg border border-border bg-card">
+                              <AvatarImage
+                                src={buildCommunityAvatarUrl(community, community.id)}
+                                alt={`${community.name ?? "Community"} avatar`}
+                              />
+                              <AvatarFallback className="rounded-lg text-[10px]">
+                                {community.name?.[0] ?? "C"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <span className="truncate">{community.name}</span>
+                              {currency && (
+                                <span className="flex items-center gap-0.5 text-xs text-muted-foreground shrink-0">
+                                  <span>(</span>
+                                  <CommunityCoinIcon className="h-3.5 w-3.5" color={community.color || undefined} />
+                                  <span>{currency.currency_symbol}</span>
+                                  <span>)</span>
+                                </span>
+                              )}
+                            </div>
+                            <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-md border border-border/60 text-muted-foreground">
+                              {selectedCommunities.includes(community.id) ? (
+                                <Minus className="h-3.5 w-3.5" />
+                              ) : (
+                                <Plus className="h-3.5 w-3.5" />
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })
                     ) : (
                       <p className="px-4 py-3 text-xs text-muted-foreground">
                         No communities match your search.

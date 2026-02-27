@@ -4,6 +4,7 @@ export type ProfileRecord = {
   id: string;
   username: string | null;
   identity_label: string | null;
+  user_tier?: string | null;
   identity_json: IdentityVector | null;
   freewill: number | null;
   coherence: number | null;

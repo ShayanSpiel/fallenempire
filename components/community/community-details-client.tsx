@@ -736,6 +736,7 @@ export function CommunityDetailsClient({
                       user_id: m.user_id!,
                       username: m.username || "Unknown",
                       avatar_url: m.avatar_url,
+                      user_tier: m.user_tier ?? null,
                       rank_tier: m.rank_tier ?? 10,
                     }));
                   return (
@@ -800,6 +801,7 @@ export function CommunityDetailsClient({
                       user_id: m.user_id!,
                       username: m.username || "Unknown",
                       avatar_url: m.avatar_url,
+                      user_tier: m.user_tier ?? null,
                       military_rank_score: m.military_rank_score ?? 0,
                       battles_fought: m.battles_fought ?? 0,
                       battles_won: m.battles_won ?? 0,

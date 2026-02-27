@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, X, Users, Settings, Plus, ImageIcon, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -582,21 +584,26 @@ export function MessageThreadUnified({
             </div>
           ) : (
             <>
-              <Avatar className={cn("h-10 w-10 border shrink-0", borders.default)}>
-                <AvatarImage
-                  src={resolveAvatar({
-                    avatarUrl: otherParticipant?.avatar_url,
-                    seed: otherParticipant?.username ?? "User",
-                  })}
-                />
-                <AvatarFallback>{otherParticipant?.username?.[0] ?? "?"}</AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                username={otherParticipant?.username ?? "User"}
+                avatarUrl={otherParticipant?.avatar_url}
+                size="md"
+                className={cn("border shrink-0", borders.default)}
+              />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <H3 className="!text-base truncate">{displayName}</H3>
                   {isAiThread && <Badge variant="secondary" className="shrink-0 text-xs">AI</Badge>}
                 </div>
-                <Small className="text-muted-foreground">@{otherParticipant?.username}</Small>
+                <Small className="text-muted-foreground">
+                  <UserNameDisplay
+                    username={otherParticipant?.username}
+                    userTier={otherParticipant?.user_tier ?? "alpha"}
+                    showLink={false}
+                    badgeSize="xs"
+                    className="text-xs"
+                  />
+                </Small>
               </div>
             </>
           )}
@@ -795,22 +802,23 @@ export function MessageThreadUnified({
                     key={message.id}
                     className={cn("flex gap-2 items-start", isCurrentUser && "flex-row-reverse")}
                   >
-                    <Avatar className={cn("h-8 w-8 border shrink-0 mt-0.5", borders.default)}>
-                      <AvatarImage
-                        src={resolveAvatar({
-                          avatarUrl: isCurrentUser ? currentAvatarUrl : senderInfo?.avatar_url,
-                          seed: isCurrentUser ? currentUsername : senderInfo?.username ?? "User",
-                        })}
-                      />
-                      <AvatarFallback>
-                        {isCurrentUser ? currentUsername?.[0] : senderInfo?.username?.[0] ?? "?"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      username={isCurrentUser ? currentUsername : senderInfo?.username ?? "User"}
+                      avatarUrl={isCurrentUser ? currentAvatarUrl : senderInfo?.avatar_url}
+                      size="sm"
+                      className={cn("border shrink-0 mt-0.5", borders.default)}
+                    />
 
                     <div className={cn("flex flex-col gap-1 max-w-xs", isCurrentUser && "items-end")}>
                       {threadType === "group" && !isCurrentUser && (
                         <Small className={cn(semanticColors.text.secondary, "px-1")}>
-                          {senderInfo?.username}
+                          <UserNameDisplay
+                            username={senderInfo?.username}
+                            userTier={senderInfo?.user_tier ?? "alpha"}
+                            showLink={false}
+                            badgeSize="xs"
+                            className="text-xs"
+                          />
                         </Small>
                       )}
                       <div

@@ -26,6 +26,7 @@ type PostComposerProps = {
   viewerAvatarUrl?: string | null;
   viewerId?: string | null;
   viewerIdentityLabel?: string | null;
+  viewerUserTier?: "alpha" | "sigma" | "omega" | null;
   feedContext?: "world" | "community" | "friends";
   communityId?: string | null; // Required when feedContext="community"
 };
@@ -47,6 +48,7 @@ export function PostComposer({
   viewerAvatarUrl,
   viewerId,
   viewerIdentityLabel,
+  viewerUserTier = "alpha",
   feedContext = "world",
   communityId = null,
 }: PostComposerProps) {
@@ -192,6 +194,7 @@ export function PostComposer({
         id: viewerId ?? "unknown",
         username: viewerName ?? "You",
         identityLabel: viewerIdentityLabel ?? null,
+        userTier: viewerUserTier ?? "alpha",
         isAgent: !!viewerId,
         avatarUrl: viewerAvatarUrl ?? null,
       },

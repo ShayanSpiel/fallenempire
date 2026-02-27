@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { InventoryPageClient } from "@/components/economy/inventory-page-client";
+import { getUserWallet } from "@/app/actions/economy";
 
 export const metadata: Metadata = {
   title: "Inventory",
@@ -30,5 +31,8 @@ export default async function InventoryPage() {
     redirect("/?auth=open");
   }
 
-  return <InventoryPageClient userId={profile.id} />;
+  // Fetch wallet data server-side for instant display
+  const wallet = await getUserWallet(profile.id);
+
+  return <InventoryPageClient userId={profile.id} initialWallet={wallet} />;
 }

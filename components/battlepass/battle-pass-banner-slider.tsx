@@ -95,14 +95,14 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
   };
 
   return (
-    <div className="rounded-xl border border-amber-300/50 dark:border-amber-600/40 bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/80 dark:from-amber-950/40 dark:via-amber-900/30 dark:to-yellow-950/40 shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-amber-300/50 dark:border-amber-600/50 bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100/80 dark:from-zinc-800/80 dark:via-zinc-900/80 dark:to-zinc-800/60 shadow-sm overflow-hidden">
       {/* Collapsed Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-3 flex items-center gap-3 relative z-10 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+        className="w-full p-3 flex items-center gap-3 relative z-10 hover:bg-amber-100/50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-400/80 dark:bg-amber-500/70 border border-amber-500/40 dark:border-amber-400/30 shadow-sm flex-shrink-0">
-          <Leaf className="w-4 h-4 text-amber-900 dark:text-amber-100" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-400/80 dark:bg-amber-600/60 border border-amber-500/40 dark:border-amber-500/30 shadow-sm flex-shrink-0">
+          <Leaf className="w-4 h-4 text-amber-900 dark:text-amber-200" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -129,9 +129,9 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 bg-amber-200/60 dark:bg-amber-900/50 rounded-full overflow-hidden border border-amber-300/40 dark:border-amber-700/40">
+            <div className="flex-1 h-2 bg-amber-200/60 dark:bg-zinc-700/60 rounded-full overflow-hidden border border-amber-300/40 dark:border-amber-600/30">
               <div
-                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 transition-all duration-500 shadow-sm"
+                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 dark:from-amber-500 dark:via-amber-600 dark:to-amber-500 transition-all duration-500 shadow-sm"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -142,7 +142,7 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
 
           {/* Unclaimed Rewards Indicator - Only show when collapsed */}
           {!isExpanded && hasUnclaimedRewards && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-400/60 dark:bg-amber-500/50 border border-amber-500/50 dark:border-amber-400/40 animate-pulse">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-400/60 dark:bg-amber-600/40 border border-amber-500/50 dark:border-amber-500/30 animate-pulse">
               <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
                 Rewards Ready!
               </span>

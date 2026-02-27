@@ -901,6 +901,7 @@ export interface CommunityBasic {
   id: string;
   name: string;
   slug: string;
+  color?: string | null;
 }
 
 export async function getAllCommunities(): Promise<CommunityBasic[]> {
@@ -908,7 +909,7 @@ export async function getAllCommunities(): Promise<CommunityBasic[]> {
 
   const { data, error } = await supabase
     .from("communities")
-    .select("id, name, slug")
+    .select("id, name, slug, color")
     .order("name");
 
   if (error) {

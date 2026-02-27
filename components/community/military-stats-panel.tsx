@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { BattleMechanicsStatus } from "@/components/battle/battle-mechanics-status";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 
 type EnemyCommunity = {
   id: string;
@@ -33,6 +35,7 @@ export type MilitaryMember = {
   user_id: string;
   username: string | null;
   avatar_url: string | null;
+  user_tier?: string | null;
   military_rank_score: number;
   battles_fought: number;
   battles_won: number;
@@ -326,21 +329,23 @@ export function MilitaryStatsPanel({
                       #{index + 1}
                     </div>
 
-                    <Avatar className="col-start-2 row-span-2 h-10 w-10 self-center rounded-lg border border-border/60 bg-background flex-shrink-0 group-hover:scale-105 transition-transform">
-                      <AvatarImage
-                        src={resolveAvatar({
-                          avatarUrl: member.avatar_url ?? null,
-                          seed: username,
-                        })}
+                    <div className="col-start-2 row-span-2 self-center">
+                      <UserAvatar
+                        username={username}
+                        avatarUrl={member.avatar_url}
+                        size="md"
                       />
-                      <AvatarFallback className="rounded-lg text-xs font-bold text-muted-foreground">
-                        {username[0]}
-                      </AvatarFallback>
-                    </Avatar>
+                    </div>
 
-                    <p className="col-start-3 row-start-1 min-w-0 text-sm font-semibold text-foreground truncate">
-                      {username}
-                    </p>
+                    <div className="col-start-3 row-start-1 min-w-0">
+                      <UserNameDisplay
+                        username={username}
+                        userTier={member.user_tier as "alpha" | "sigma" | "omega" | null}
+                        showLink={false}
+                        badgeSize="xs"
+                        className="text-sm font-semibold truncate"
+                      />
+                    </div>
                     <p className="col-start-3 row-start-2 min-w-0 text-xs text-muted-foreground">
                       {damageTotal.toLocaleString()} total damage
                     </p>

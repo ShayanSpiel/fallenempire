@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowUpDown, MapPin, Plane, ChevronDown } from "lucide-react";
+import { ArrowUpDown, MapPin, Plane, ChevronDown, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   acceptExchangeOrder,
   getOrderBook,
   getIndividualOrders,
+  cancelExchangeOrder,
 } from "@/app/actions/market";
 import type {
   OrderBookData,
@@ -32,6 +33,7 @@ import type {
 
 interface CurrencyExchangeP2PProps {
   data: {
+    userId: string;
     userGold: number;
     userHex: string | null;
     userHexCustomName: string | null;
@@ -62,8 +64,16 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
   const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderBookIndividual | null>(null);
   const [tradingAsset, setTradingAsset] = useState<"gold" | "currency">("gold");
-  const [sourceAccount, setSourceAccount] = useState<SourceAccount>("personal");
+  const [sourceAccount, setSourceAccount] = useState<SourceAccount>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('exchange-source-account');
+      return (stored === 'treasury' || stored === 'personal') ? stored : 'personal';
+    }
+    return 'personal';
+  });
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [offerAmount, setOfferAmount] = useState("");
   const [wantAmount, setWantAmount] = useState("");
   const [isBuying, setIsBuying] = useState(false);
@@ -72,6 +82,7 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
   const [allCurrencies, setAllCurrencies] = useState(data.communityCurrencies);
   const [selectedCommunityRole, setSelectedCommunityRole] = useState<string | null>(data.userCommunityRole);
   const [communityTreasuryBalance, setCommunityTreasuryBalance] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const lastFetchedCommunityId = useRef<string | null>(null);
 
   // IMPORTANT: Use selectedCommunities[0] directly, not state (avoids stale closure)
@@ -88,6 +99,8 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
         }
       } catch (error) {
         console.warn("Could not load all currencies, using pre-loaded data", error);
+      } finally {
+        setInitialLoading(false);
       }
     };
     loadAllCurrencies();
@@ -231,6 +244,7 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
       setLoading(false);
     }
   }, []);
+
 
   // Fetch order book when selected currency changes (not just when trading asset changes)
   useEffect(() => {
@@ -398,12 +412,29 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
     }
   };
 
-  if (!selectedCurrency) {
+  // Show skeleton while loading initial data
+  if (initialLoading) {
     return (
-      <Card className={cn("p-6 text-center", EXCHANGE_CONFIG.card.className)}>
-        <p className={EXCHANGE_CONFIG.header.subtitle}>No community currency available</p>
-        <p className={cn(EXCHANGE_CONFIG.header.subtitle, "mt-1")}>Join a community to start trading</p>
-      </Card>
+      <div className={EXCHANGE_CONFIG.container.grid}>
+        <Card className={cn(EXCHANGE_CONFIG.card.className, EXCHANGE_CONFIG.container.height)}>
+          <div className={EXCHANGE_CONFIG.header.className}>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: EXCHANGE_CONFIG.skeleton.offerRows }).map((_, i) => (
+                <Skeleton key={i} className={cn("w-full", EXCHANGE_CONFIG.skeleton.height)} />
+              ))}
+            </div>
+          </div>
+        </Card>
+        <Card className={cn(EXCHANGE_CONFIG.card.className, EXCHANGE_CONFIG.container.height)}>
+          <div className={EXCHANGE_CONFIG.header.className}>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: EXCHANGE_CONFIG.skeleton.offerRows }).map((_, i) => (
+                <Skeleton key={i} className={cn("w-full", EXCHANGE_CONFIG.skeleton.height)} />
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
     );
   }
 
@@ -433,25 +464,22 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
 
   const relevantOffers = tradingAsset === "gold" ? orderBook?.sells || [] : orderBook?.buys || [];
 
-  // Show loading skeleton if no community selected
+  // Show error state if no currency selected after loading
   if (!selectedCurrency) {
     return (
       <div className={EXCHANGE_CONFIG.container.grid}>
         <Card className={cn(EXCHANGE_CONFIG.card.className, EXCHANGE_CONFIG.container.height)}>
-          <div className={EXCHANGE_CONFIG.header.className}>
-            <div className="p-4 space-y-3">
-              {Array.from({ length: EXCHANGE_CONFIG.skeleton.offerRows }).map((_, i) => (
-                <Skeleton key={i} className={cn("w-full", EXCHANGE_CONFIG.skeleton.height)} />
-              ))}
+          <div className={cn(EXCHANGE_CONFIG.header.className, "flex items-center justify-center h-full")}>
+            <div className="text-center p-6">
+              <p className={cn(EXCHANGE_CONFIG.header.subtitle, "text-base")}>No community currency available</p>
+              <p className={cn(EXCHANGE_CONFIG.header.subtitle, "mt-2")}>Join a community to start trading</p>
             </div>
           </div>
         </Card>
         <Card className={cn(EXCHANGE_CONFIG.card.className, EXCHANGE_CONFIG.container.height)}>
-          <div className={EXCHANGE_CONFIG.header.className}>
-            <div className="p-4 space-y-3">
-              {Array.from({ length: EXCHANGE_CONFIG.skeleton.offerRows }).map((_, i) => (
-                <Skeleton key={i} className={cn("w-full", EXCHANGE_CONFIG.skeleton.height)} />
-              ))}
+          <div className={cn(EXCHANGE_CONFIG.header.className, "flex items-center justify-center h-full")}>
+            <div className="text-center p-6">
+              <p className={cn(EXCHANGE_CONFIG.header.subtitle, "text-sm")}>Select a community from the filter above</p>
             </div>
           </div>
         </Card>
@@ -543,6 +571,21 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
                     selectedOrder={selectedOrder}
                     onSelectOrder={setSelectedOrder}
                     disabled={!isInCommunityLocation}
+                    currentUserId={data.userId}
+                    onCancelOrder={async (orderId) => {
+                      try {
+                        const result = await cancelExchangeOrder(orderId);
+                        if (result.success) {
+                          toast.success("Order cancelled successfully");
+                          await fetchOrderBook(selectedCurrency, tradingAsset);
+                        } else {
+                          toast.error(result.message || "Failed to cancel order");
+                        }
+                      } catch (error) {
+                        console.error("Cancel order error:", error);
+                        toast.error("Failed to cancel order");
+                      }
+                    }}
                   />
                 );
               })}
@@ -553,25 +596,45 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
 
       {/* Right: Exchange Form */}
       <Card className={cn(EXCHANGE_CONFIG.card.className, EXCHANGE_CONFIG.container.height)}>
-        <div className={cn(EXCHANGE_CONFIG.header.className, "flex items-center justify-between")}>
-          <div>
-            <h3 className={EXCHANGE_CONFIG.header.title}>Exchange</h3>
-            <p className={EXCHANGE_CONFIG.header.subtitle}>Trade with {selectedCurrency.currencyName}</p>
+        <div className={cn(EXCHANGE_CONFIG.header.className, "flex flex-col gap-3")}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={EXCHANGE_CONFIG.header.title}>Exchange</h3>
+              <p className={EXCHANGE_CONFIG.header.subtitle}>Trade with {selectedCurrency.currencyName}</p>
+            </div>
           </div>
           {isLeader && (
-            <button
-              onClick={() => setSourceAccount(sourceAccount === "personal" ? "treasury" : "personal")}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-2",
-                sourceAccount === "treasury"
-                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/30"
-                  : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-              )}
-              title={`Switch to ${sourceAccount === "personal" ? "treasury" : "personal"} account`}
-            >
-              <span className="capitalize">{sourceAccount}</span>
-              <span className={cn("h-2 w-2 rounded-full", sourceAccount === "treasury" ? "bg-emerald-500" : "bg-slate-400")} />
-            </button>
+            <div className="flex items-center gap-2 pb-1">
+              <span className="text-xs font-medium text-muted-foreground">Trading Account:</span>
+              <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+                <button
+                  onClick={() => setSourceAccount("personal")}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2",
+                    sourceAccount === "personal"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                  )}
+                  title="Use your personal account"
+                >
+                  <span>Personal</span>
+                  {sourceAccount === "personal" && <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />}
+                </button>
+                <button
+                  onClick={() => setSourceAccount("treasury")}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2",
+                    sourceAccount === "treasury"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                  )}
+                  title="Use community treasury account"
+                >
+                  <span>Treasury</span>
+                  {sourceAccount === "treasury" && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -680,20 +743,18 @@ export function CurrencyExchangeP2P({ data, selectedCommunities }: CurrencyExcha
             <Button
               onClick={handleBuy}
               disabled={isBuying || isSelling || !selectedOrder || !isInCommunityLocation}
-              variant="default"
-              className="w-full"
+              className="w-full bg-green-600 hover:bg-green-700 text-white disabled:bg-green-600/50 disabled:text-white/70"
               title={!isInCommunityLocation ? "Travel to community to accept offers" : ""}
             >
-              {isBuying ? "Processing..." : selectedOrder ? "Accept Selected Offer" : "Select an Offer"}
+              {isBuying ? "Processing..." : selectedOrder ? "Buy! (Accept Offer)" : "Buy! (Select an Offer)"}
             </Button>
             <Button
               onClick={handleSell}
               disabled={isBuying || isSelling || !offerAmount || !wantAmount || !isInCommunityLocation}
-              variant="outline"
-              className="w-full"
+              className="w-full bg-red-600 hover:bg-red-700 text-white disabled:bg-red-600/50 disabled:text-white/70"
               title={!isInCommunityLocation ? "Travel to community to post offers" : ""}
             >
-              {isSelling ? "Processing..." : selectedOrder ? "Match Best or Post New" : relevantOffers.length > 0 ? "Match Best Offer" : "Post New Offer"}
+              {isSelling ? "Processing..." : selectedOrder ? "Sell! (Match or Post)" : relevantOffers.length > 0 ? "Sell! (Match Best)" : "Sell! (Post New Offer)"}
             </Button>
           </div>
 
@@ -718,6 +779,8 @@ function OfferLevel({
   selectedOrder,
   onSelectOrder,
   disabled,
+  currentUserId,
+  onCancelOrder,
 }: {
   level: any;
   orders: OrderBookIndividual[];
@@ -728,11 +791,15 @@ function OfferLevel({
   selectedOrder: OrderBookIndividual | null;
   onSelectOrder: (order: OrderBookIndividual | null) => void;
   disabled?: boolean;
+  currentUserId: string;
+  onCancelOrder: (orderId: string) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
 
   const firstOrder = orders[0];
   const isAnySelected = orders.some(o => o.order_id === selectedOrder?.order_id);
+  const hasUserOrder = orders.some(o => o.user_id === currentUserId);
 
   if (ordersLoading) {
     return <Skeleton className={cn("w-full", EXCHANGE_CONFIG.skeleton.height)} />;
@@ -785,6 +852,11 @@ function OfferLevel({
               <span className={cn(EXCHANGE_CONFIG.header.subtitle, "font-semibold")}>
                 {orders.length} {orders.length === 1 ? "offer" : "offers"}
               </span>
+              {hasUserOrder && (
+                <span className="text-[9px] px-1.5 py-0.5 bg-primary/20 text-primary rounded font-bold">
+                  YOUR ORDER
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
@@ -838,53 +910,77 @@ function OfferLevel({
           <ScrollArea className={EXCHANGE_CONFIG.expandedOrder.maxHeight}>
             {orders.map((order) => {
               const isThisOrderSelected = selectedOrder?.order_id === order.order_id;
+              const isUserOrder = order.user_id === currentUserId;
               return (
-                <button
-                  key={order.order_id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!disabled) {
-                      onSelectOrder(isThisOrderSelected ? null : order);
-                      setExpanded(false);
-                    }
-                  }}
-                  disabled={disabled}
-                  className={cn(
-                    EXCHANGE_CONFIG.expandedOrder.button,
-                    isThisOrderSelected ? EXCHANGE_CONFIG.expandedOrder.selectedBg : EXCHANGE_CONFIG.expandedOrder.hoverBg,
-                    disabled && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <Avatar className={cn(EXCHANGE_CONFIG.expandedOrder.avatarSize, "rounded-full border border-border bg-card shrink-0")}>
-                    <AvatarImage
-                      src={resolveAvatar({ avatarUrl: order.avatar_url, seed: order.username })}
-                      alt={order.username}
-                    />
-                    <AvatarFallback className="rounded-full text-[10px]">
-                      {order.username.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                <div key={order.order_id} className="relative group">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!disabled && !isUserOrder) {
+                        onSelectOrder(isThisOrderSelected ? null : order);
+                        setExpanded(false);
+                      }
+                    }}
+                    disabled={disabled || isUserOrder}
+                    className={cn(
+                      EXCHANGE_CONFIG.expandedOrder.button,
+                      isThisOrderSelected ? EXCHANGE_CONFIG.expandedOrder.selectedBg : EXCHANGE_CONFIG.expandedOrder.hoverBg,
+                      disabled && "opacity-50 cursor-not-allowed",
+                      isUserOrder && "cursor-default"
+                    )}
+                  >
+                    <Avatar className={cn(EXCHANGE_CONFIG.expandedOrder.avatarSize, "rounded-full border border-border bg-card shrink-0")}>
+                      <AvatarImage
+                        src={resolveAvatar({ avatarUrl: order.avatar_url, seed: order.username })}
+                        alt={order.username}
+                      />
+                      <AvatarFallback className="rounded-full text-[10px]">
+                        {order.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-foreground truncate">
-                      {order.username}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">
+                        {order.username}
+                        {isUserOrder && <span className="text-[9px] ml-1 text-muted-foreground">(You)</span>}
+                      </div>
+                      <div className={cn("flex items-center gap-1 text-[10px]", EXCHANGE_CONFIG.header.subtitle)}>
+                        <GoldCoinIcon className="h-2.5 w-2.5" />
+                        <span>{order.remaining_gold_amount.toFixed(2)}</span>
+                        <span className="mx-0.5">⇄</span>
+                        <CommunityCoinIcon className="h-2.5 w-2.5" color={communityColor || undefined} />
+                        <span>{order.remaining_currency_amount.toFixed(2)}</span>
+                      </div>
                     </div>
-                    <div className={cn("flex items-center gap-1 text-[10px]", EXCHANGE_CONFIG.header.subtitle)}>
-                      <GoldCoinIcon className="h-2.5 w-2.5" />
-                      <span>{order.remaining_gold_amount.toFixed(2)}</span>
-                      <span className="mx-0.5">⇄</span>
-                      <CommunityCoinIcon className="h-2.5 w-2.5" color={communityColor || undefined} />
-                      <span>{order.remaining_currency_amount.toFixed(2)}</span>
-                    </div>
-                  </div>
 
-                  {order.source_account === 'treasury' && (
-                    <span className="text-[9px] px-1 py-0.5 bg-primary/30 text-primary rounded font-bold shrink-0">
-                      TREASURY
-                    </span>
+                    {order.source_account === 'treasury' && (
+                      <span className="text-[9px] px-1 py-0.5 bg-primary/30 text-primary rounded font-bold shrink-0">
+                        TREASURY
+                      </span>
+                    )}
+                  </button>
+                  {isUserOrder && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setCancelingOrderId(order.order_id);
+                        await onCancelOrder(order.order_id);
+                        setCancelingOrderId(null);
+                      }}
+                      disabled={cancelingOrderId === order.order_id}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Cancel order"
+                    >
+                      {cancelingOrderId === order.order_id ? (
+                        <span className="text-[10px]">...</span>
+                      ) : (
+                        <X className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </ScrollArea>

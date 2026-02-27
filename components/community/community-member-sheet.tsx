@@ -5,6 +5,8 @@ import Link from "next/link";
 import { User, Crown, ChevronRight, Users, UserCog } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { resolveAvatar } from "@/lib/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
@@ -17,6 +19,7 @@ export type Member = {
   username: string | null;
   identity_label?: string | null;
   avatar_url: string | null;
+  user_tier?: "alpha" | "sigma" | "omega" | null;
   role?: "founder" | "leader" | "member";
   rank_tier?: number;
   military_rank_score?: number;
@@ -49,17 +52,12 @@ function MemberListItem({ member }: { member: Member }) {
     >
       <div className="flex items-center gap-3">
         <div className="relative">
-          <Avatar className="h-10 w-10 rounded-xl border border-border/60 bg-background shadow-sm group-hover:scale-105 transition-transform">
-            <AvatarImage
-              src={resolveAvatar({
-                avatarUrl: member.avatar_url ?? null,
-                seed: username,
-              })}
-            />
-            <AvatarFallback className="rounded-xl text-xs font-bold text-muted-foreground">
-              {username[0]}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            username={username}
+            avatarUrl={member.avatar_url ?? null}
+            size="md"
+            className="rounded-xl border border-border/60 bg-background shadow-sm group-hover:scale-105 transition-transform"
+          />
           {isLeader && (
             <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-background">
               <Crown size={10} className="text-amber-500 fill-amber-500" />
@@ -68,9 +66,13 @@ function MemberListItem({ member }: { member: Member }) {
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-            {username}
-          </span>
+          <UserNameDisplay
+            username={username}
+            userTier={member.user_tier ?? "alpha"}
+            showLink={false}
+            badgeSize="sm"
+            className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors"
+          />
           <IdentityLabel
             label={member.identity_label}
             className="text-[9px] uppercase tracking-wider opacity-70"

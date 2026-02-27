@@ -1,6 +1,6 @@
 "use client";
 
-import type { InventoryByCategory } from "@/lib/types/economy";
+import type { InventoryByCategory, WalletDisplay } from "@/lib/types/economy";
 import { getCategoryLabel } from "@/lib/economy-config";
 import { InventoryItemCard } from "./inventory-item-card";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -8,9 +8,10 @@ import { SectionHeading } from "@/components/ui/section-heading";
 interface InventoryGridProps {
   inventory: InventoryByCategory[];
   communityId?: string | null;
+  wallet?: WalletDisplay | null;
 }
 
-export function InventoryGrid({ inventory, communityId }: InventoryGridProps) {
+export function InventoryGrid({ inventory, communityId, wallet }: InventoryGridProps) {
   if (!inventory || inventory.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -32,7 +33,12 @@ export function InventoryGrid({ inventory, communityId }: InventoryGridProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {category.items.map((item) => (
-              <InventoryItemCard key={item.id} item={item} communityId={communityId} />
+              <InventoryItemCard
+                key={item.id}
+                item={item}
+                communityId={communityId}
+                wallet={wallet}
+              />
             ))}
           </div>
         </div>

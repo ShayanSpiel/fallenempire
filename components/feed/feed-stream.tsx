@@ -16,6 +16,8 @@ import { NotificationCategory, NotificationType } from "@/lib/types/notification
 import { realtimeManager } from "@/lib/services/notification-service";
 import { resolveAvatar } from "@/lib/avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import {
   Tooltip,
   TooltipContent,
@@ -52,6 +54,7 @@ type FeedStreamProps = {
     username: string | null;
     identityLabel: string | null;
     avatarUrl: string | null;
+    userTier?: "alpha" | "sigma" | "omega" | null;
   };
   feedContext?: "world" | "community" | "friends";
   externalInitialLoading?: boolean;
@@ -178,23 +181,21 @@ const FeedItem = React.memo(function FeedItem({
       >
         <CardContent className="space-y-5 p-0">
           <div className="flex items-start gap-4">
-            <Avatar className="h-11 w-11 rounded-full border border-border/60 shadow-sm bg-card">
-              <AvatarImage
-                src={resolveAvatar({
-                  avatarUrl: post.user?.avatarUrl ?? null,
-                  seed: username,
-                })}
-              />
-              <AvatarFallback>{username[0]}</AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              username={username}
+              avatarUrl={post.user?.avatarUrl ?? null}
+              size="lg"
+              className="rounded-full border border-border/60 shadow-sm bg-card"
+            />
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between gap-3">
-                <Link
-                  href={`/profile/${username}`}
+                <UserNameDisplay
+                  username={username}
+                  userTier={post.user?.userTier ?? "alpha"}
+                  showLink={true}
+                  badgeSize="sm"
                   className="text-base font-bold text-foreground hover:text-link"
-                >
-                  {username}
-                </Link>
+                />
                 <span className="text-[11px] text-muted-foreground font-semibold">
                   {time}
                 </span>
@@ -570,6 +571,7 @@ export function FeedStream({
           viewerAvatarUrl={viewerProfile.avatarUrl ?? null}
           viewerId={viewerProfile.id}
           viewerIdentityLabel={viewerProfile.identityLabel}
+          viewerUserTier={viewerProfile.userTier ?? "alpha"}
           feedContext={feedContext}
           communityId={effectiveCommunityId}
         />

@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { componentSpacing, cardStyles, layout, typography } from "@/lib/design-system";
 import { ColorSelector } from "@/components/settings/color-selector";
+import { ThemeSelector } from "@/components/settings/theme-selector";
 
 interface SettingsProfile {
   id: string;
@@ -429,6 +430,15 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
           <main className="space-y-8">
             {activeSection === "profile" && (
               <>
+                {/* Theme Selector Section */}
+                <Card>
+                  <CardContent className="space-y-6">
+                    <ThemeSelector />
+                  </CardContent>
+                </Card>
+
+                <Separator />
+
                 {/* Identity Label Section */}
                 <Card>
                   <CardContent className="space-y-6">

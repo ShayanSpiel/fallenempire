@@ -133,10 +133,17 @@ export function PoliticsPanel({
     setIsDrawerOpen(true);
   };
 
-  const handleProposalCreated = () => {
+  const handleProposalCreated = (proposalIdToView?: string) => {
     loadActiveProposals();
     if (hasLoadedResolved) {
       void loadResolvedProposals(1);
+    }
+
+    // If a proposal ID is provided, open it after a short delay
+    if (proposalIdToView) {
+      setTimeout(() => {
+        handleSelectProposal(proposalIdToView);
+      }, 100);
     }
   };
 

@@ -47,7 +47,7 @@ export function CommunityFeedTab({
 	            content,
 	            created_at,
 	            user_id,
-	            user:users(id, username, identity_label, is_bot, avatar_url),
+	            user:users(id, username, identity_label, is_bot, avatar_url, user_tier),
 	            post_reactions(
 	              id,
 	              user_id,
@@ -109,7 +109,7 @@ export function CommunityFeedTab({
 	              created_at,
 	              is_agent,
 	              post_id,
-	              user:users(id, username, identity_label, avatar_url)
+	              user:users(id, username, identity_label, avatar_url, user_tier)
 	            `)
 	            .in("post_id", postIds)
 	            .order("created_at", { ascending: true });
@@ -135,6 +135,7 @@ export function CommunityFeedTab({
 	                  username: normalizedUser.username,
 	                  identityLabel: normalizedUser.identity_label,
 	                  avatarUrl: normalizedUser.avatar_url,
+	                  userTier: normalizedUser.user_tier,
 	                } : null,
 	              };
 	            });
@@ -160,6 +161,7 @@ export function CommunityFeedTab({
 	              identity_label: normalizedPostUser.identity_label,
 	              is_bot: normalizedPostUser.is_bot,
 	              avatar_url: normalizedPostUser.avatar_url,
+	              user_tier: normalizedPostUser.user_tier,
 	            } : null,
 	            post_reactions: Array.isArray(post.post_reactions)
 	              ? post.post_reactions.map((reaction) => {

@@ -29,6 +29,7 @@ type CommentUser = {
   username: string | null;
   identity_label: string | null;
   avatar_url: string | null;
+  user_tier?: string | null;
 };
 
 function mergeUsersWithComments(
@@ -51,6 +52,7 @@ function mergeUsersWithComments(
             username: userInfo?.username ?? null,
             identityLabel: userInfo?.identity_label ?? null,
             avatarUrl: userInfo?.avatar_url ?? null,
+            userTier: userInfo?.user_tier ?? null,
           }
         : null,
     };
@@ -104,7 +106,7 @@ export async function GET(request: Request) {
   if (userIds.length) {
       const { data: usersData } = await supabase
         .from("users")
-        .select("id, auth_id, username, identity_label, avatar_url")
+        .select("id, auth_id, username, identity_label, avatar_url, user_tier")
         .in("id", userIds);
     const matchedUsers = (usersData ?? []) as CommentUser[];
     matchedUsers.forEach((user) => {
@@ -118,7 +120,7 @@ export async function GET(request: Request) {
     if (unmatched.length) {
       const { data: fallbackUsers } = await supabase
         .from("users")
-        .select("id, auth_id, username, identity_label, avatar_url")
+        .select("id, auth_id, username, identity_label, avatar_url, user_tier")
         .in("auth_id", unmatched);
       const fallbackList = (fallbackUsers ?? []) as CommentUser[];
       fallbackList.forEach((user) => {

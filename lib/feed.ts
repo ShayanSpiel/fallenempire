@@ -11,6 +11,7 @@ export type FeedPostRow = {
         identity_label: string | null;
         is_bot: boolean | null;
         avatar_url: string | null;
+        user_tier?: string | null;
       }
     | null;
   post_reactions:
@@ -34,6 +35,7 @@ export type FeedPost = {
     identityLabel: string | null;
     isAgent: boolean;
     avatarUrl?: string | null;
+    userTier?: string | null;
   } | null;
   likeCount: number;
   dislikeCount: number;
@@ -67,17 +69,20 @@ function normalizeUser(
         username: string | null;
         identity_label: string | null;
         is_bot: boolean | null;
+        user_tier?: string | null;
       }
     | null
 ) {
   if (!user) return null;
   const avatarUrl = "avatar_url" in user ? user.avatar_url : null;
+  const userTier = "user_tier" in user ? user.user_tier : null;
   return {
     id: user.id,
     username: user.username,
     identityLabel: user.identity_label,
     isAgent: Boolean(user.is_bot),
     avatarUrl,
+    userTier,
   };
 }
 

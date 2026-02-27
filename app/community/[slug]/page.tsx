@@ -42,6 +42,7 @@ type CommunityMemberRow = {
         username: string | null;
         identity_label: string | null;
         avatar_url: string | null;
+        user_tier?: string | null;
         military_rank_score?: number | null;
         battles_fought?: number | null;
         battles_won?: number | null;
@@ -195,7 +196,7 @@ export default async function CommunityDetailPage({
       user_id,
       role,
       rank_tier,
-      user:users(id, username, identity_label, avatar_url, military_rank_score, battles_fought, battles_won, total_damage_dealt, win_streak, updated_at, morale, strength)
+      user:users(id, username, identity_label, avatar_url, user_tier, military_rank_score, battles_fought, battles_won, total_damage_dealt, win_streak, updated_at, morale, strength)
     )
   `;
 
@@ -227,7 +228,7 @@ export default async function CommunityDetailPage({
           user_id,
           role,
           rank_tier,
-          user:users(id, username, identity_label, avatar_url, military_rank_score, battles_fought, battles_won, total_damage_dealt, win_streak, updated_at, morale, strength)
+          user:users(id, username, identity_label, avatar_url, user_tier, military_rank_score, battles_fought, battles_won, total_damage_dealt, win_streak, updated_at, morale, strength)
         )
       `;
     } catch {
@@ -358,6 +359,7 @@ export default async function CommunityDetailPage({
       username: userData?.username ?? "Unknown Operative",
       identity_label: userData?.identity_label ?? "Unknown",
       avatar_url: userData?.avatar_url ?? null,
+      user_tier: (userData?.user_tier as "alpha" | "sigma" | "omega" | null) ?? null,
       role: (m.role as Member["role"]) ?? "member",
       rank_tier: m.rank_tier ?? undefined,
       military_rank_score: userData?.military_rank_score ?? 0,

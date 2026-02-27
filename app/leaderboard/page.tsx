@@ -20,6 +20,7 @@ type LeaderboardEntry = {
   id: string;
   username: string;
   avatar_url: string | null;
+  user_tier?: string | null;
   current_military_rank: string;
   military_rank_score: number;
   total_xp: number;
@@ -143,7 +144,7 @@ export default function LeaderboardPage() {
         setLoading(true);
 
         const selectFields =
-          'id, username, avatar_url, current_military_rank, military_rank_score, total_xp, current_level, battles_fought, battles_won, power_mental';
+          'id, username, avatar_url, user_tier, current_military_rank, military_rank_score, total_xp, current_level, battles_fought, battles_won, power_mental';
 
         const { data: rankData } = await memoizedSupabase
           .from('users')
@@ -419,6 +420,7 @@ export default function LeaderboardPage() {
                     rank={startIndex + index + 1}
                     username={entry.username}
                     avatarUrl={entry.avatar_url}
+                    userTier={entry.user_tier as "alpha" | "sigma" | "omega" | null}
                     militaryRank={entry.current_military_rank || 'Recruit'}
                     militaryScore={entry.military_rank_score || 0}
                     level={entry.current_level || 1}

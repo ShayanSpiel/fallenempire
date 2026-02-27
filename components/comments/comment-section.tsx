@@ -8,6 +8,8 @@ import type { RealtimePostgresInsertPayload } from "@supabase/realtime-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserNameDisplay } from "@/components/ui/user-name-display";
 import { resolveAvatar } from "@/lib/avatar";
 import { IdentityLabel } from "@/components/ui/identity-label";
 import { highlightMentions, detectTrigger, replaceAtPosition } from "@/lib/utils/mention-parser";
@@ -24,6 +26,7 @@ type Comment = {
     username: string | null;
     identityLabel: string | null;
     avatarUrl?: string | null;
+    userTier?: "alpha" | "sigma" | "omega" | null;
   } | null;
 };
 
@@ -353,20 +356,21 @@ export function CommentSection({
                 key={comment.id}
                 className="flex gap-3 items-start animate-in fade-in duration-500 group/comment"
               >
-            <Avatar className="h-6 w-6 rounded-full mt-0.5 border border-border bg-card">
-              <AvatarImage
-                src={resolveAvatar({
-                  avatarUrl: comment.user?.avatarUrl ?? null,
-                  seed: comment.user?.username ?? "guest",
-                })}
-              />
-              <AvatarFallback>?</AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              username={comment.user?.username ?? "guest"}
+              avatarUrl={comment.user?.avatarUrl ?? null}
+              size="xs"
+              className="rounded-full mt-0.5 border border-border bg-card"
+            />
                 <div className="flex-1">
                   <div className="flex items-baseline gap-2">
-                    <Link href={profileUrl} className="text-xs font-bold text-foreground hover:underline">
-                      {comment.user?.username ?? "Unknown"}
-                    </Link>
+                    <UserNameDisplay
+                      username={comment.user?.username ?? "Unknown"}
+                      userTier={comment.user?.userTier ?? "alpha"}
+                      showLink={true}
+                      badgeSize="xs"
+                      className="text-xs font-bold text-foreground hover:underline"
+                    />
                     <span className="text-[10px] text-muted-foreground">{timeLabel}</span>
                   </div>
                   <IdentityLabel label={comment.user?.identityLabel} className="text-[10px]" />
