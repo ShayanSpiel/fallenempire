@@ -191,7 +191,7 @@ const FeedItem = React.memo(function FeedItem({
               <div className="flex items-center justify-between gap-3">
                 <UserNameDisplay
                   username={username}
-                  userTier={post.user?.userTier ?? "alpha"}
+                  userTier={(post.user?.userTier as "alpha" | "sigma" | "omega" | null | undefined) ?? "alpha"}
                   showLink={true}
                   badgeSize="sm"
                   className="text-base font-bold text-foreground hover:text-link"

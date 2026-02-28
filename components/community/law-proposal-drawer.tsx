@@ -36,6 +36,7 @@ interface ProposalData {
   id: string;
   law_type: string;
   status: string;
+  community_id: string;
   metadata: Record<string, unknown>;
   yesVotes: number;
   noVotes: number;
@@ -233,8 +234,8 @@ export function LawProposalDrawer({
             ? "no"
             : null;
 
-      let userMap: Record<string, string> = {};
-      let communityMap: Record<string, string> = {};
+      let userMap: Record<string, string> = {} as Record<string, string>;
+      let communityMap: Record<string, string> = {} as Record<string, string>;
       const uniqueUserIds = Array.from(
         new Set(voteRows.map((row) => row.user_id).filter(Boolean))
       ) as string[];
@@ -257,7 +258,7 @@ export function LawProposalDrawer({
         // For CFC alliances, determine which community each voter belongs to
         if (data.law_type === "CFC_ALLIANCE" && baseMetadata.target_community_id) {
           const initiatorCommunityId = data.community_id;
-          const targetCommunityId = baseMetadata.target_community_id;
+          const targetCommunityId = String(baseMetadata.target_community_id);
 
           // Check initiator community memberships
           const { data: initiatorMembers } = await supabase
@@ -883,7 +884,7 @@ export function LawProposalDrawer({
                 )}
 
                 {/* Dual table for CFC Alliance votes */}
-                {proposalData.law_type === "CFC_ALLIANCE" && proposalData.metadata?.target_community_id && (
+                {proposalData.law_type === "CFC_ALLIANCE" && !!proposalData.metadata?.target_community_id && (
                   <div className="space-y-3 border-t border-border/30 pt-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Mutual Approval Required - Both Communities Must Vote Yes
@@ -938,7 +939,7 @@ export function LawProposalDrawer({
                       {/* Target Community Votes */}
                       <div className="space-y-2 p-3 rounded-lg border border-border/40 bg-muted/20">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          {proposalData.metadata.target_community_name || "Target Community"}
+                          {String(proposalData.metadata.target_community_name || "Target Community")}
                         </p>
                         {(() => {
                           const targetVotes = voteRows.filter(row => row.community_id === proposalData.metadata.target_community_id);

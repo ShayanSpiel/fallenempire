@@ -945,7 +945,7 @@ function OfferLevel({
               setCancelingOrderId(null);
             }}
             disabled={cancelingOrderId === userOrder.order_id}
-            className="absolute right-12 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
+            className="absolute right-12 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
             title="Cancel your order"
           >
             {cancelingOrderId === userOrder.order_id ? (
@@ -1040,7 +1040,7 @@ function OfferLevel({
                         setCancelingOrderId(null);
                       }}
                       disabled={cancelingOrderId === order.order_id}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors"
                       title="Cancel order"
                     >
                       {cancelingOrderId === order.order_id ? (

@@ -386,7 +386,7 @@ export function ProfileView({
                     <h1 className="text-3xl font-extrabold text-foreground tracking-tight text-center md:text-left">
                       <UserNameDisplay
                         username={profile.username ?? "Anonymous"}
-                        userTier={profile.user_tier ?? "alpha"}
+                        userTier={(profile.user_tier as "alpha" | "sigma" | "omega" | null) ?? "alpha"}
                         showLink={false}
                         badgeSize="md"
                         className="inline-flex"

@@ -39,6 +39,7 @@ type Participant = {
   avatar_url: string | null;
   is_bot?: boolean;
   role?: "admin" | "member";
+  user_tier?: string | null;
 };
 
 type ThreadMessage = {
@@ -598,7 +599,7 @@ export function MessageThreadUnified({
                 <Small className="text-muted-foreground">
                   <UserNameDisplay
                     username={otherParticipant?.username}
-                    userTier={otherParticipant?.user_tier ?? "alpha"}
+                    userTier={(otherParticipant?.user_tier as "alpha" | "sigma" | "omega" | null | undefined) ?? "alpha"}
                     showLink={false}
                     badgeSize="xs"
                     className="text-xs"
@@ -814,7 +815,7 @@ export function MessageThreadUnified({
                         <Small className={cn(semanticColors.text.secondary, "px-1")}>
                           <UserNameDisplay
                             username={senderInfo?.username}
-                            userTier={senderInfo?.user_tier ?? "alpha"}
+                            userTier={(senderInfo?.user_tier as "alpha" | "sigma" | "omega" | null | undefined) ?? "alpha"}
                             showLink={false}
                             badgeSize="xs"
                             className="text-xs"
