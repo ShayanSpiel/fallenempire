@@ -7,6 +7,8 @@
  * No server dependencies - safe to import in "use client" components.
  */
 
+import { CURRENCY_COLORS } from "./design-system";
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -48,7 +50,7 @@ export interface CurrencyFormatOptions {
 const GOLD_CURRENCY: CurrencyDisplayInfo = {
   symbol: "G",
   name: "Gold",
-  color: "#FFD700", // Gold color
+  color: CURRENCY_COLORS.gold,
   shortName: "Gold",
   fullName: "Universal Gold Currency",
 };
@@ -56,7 +58,7 @@ const GOLD_CURRENCY: CurrencyDisplayInfo = {
 const DEFAULT_COMMUNITY_CURRENCY: CurrencyDisplayInfo = {
   symbol: "CC",
   name: "Community Coin",
-  color: "#3B82F6", // Blue
+  color: CURRENCY_COLORS.community,
   shortName: "CC",
   fullName: "Community Currency",
 };

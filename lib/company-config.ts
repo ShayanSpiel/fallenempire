@@ -4,16 +4,8 @@
 // Company types are config data, NOT database dependent
 // Only the user's actual companies are loaded from database
 
-import {
-  Wheat,
-  Mountain,
-  Hammer,
-  Droplet,
-  Train,
-  CookingPot,
-  Building2,
-  type LucideIcon,
-} from "lucide-react";
+import { Building2, type LucideIcon } from "lucide-react";
+import { getCompanyIcon as getCompanyIconFromRegistry, COMPANY_ICONS } from "@/lib/icons/registry";
 
 export interface StaticCompanyType {
   key: string;
@@ -37,7 +29,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     description: "Extract grain from fertile farmland.",
     build_cost_gold: 10,
     build_cost_resources: {},
-    icon: Wheat,
+    icon: COMPANY_ICONS.farm,
     pollution_per_work: 1,
     max_level: 5,
   },
@@ -48,7 +40,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     description: "Extract iron ore from underground deposits.",
     build_cost_gold: 15,
     build_cost_resources: {},
-    icon: Mountain,
+    icon: COMPANY_ICONS.mine,
     pollution_per_work: 3,
     max_level: 5,
   },
@@ -59,7 +51,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     description: "Extract crude oil from petroleum reservoirs.",
     build_cost_gold: 25,
     build_cost_resources: {},
-    icon: Droplet,
+    icon: COMPANY_ICONS.oil_rig,
     pollution_per_work: 5,
     max_level: 3,
   },
@@ -74,7 +66,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     build_cost_resources: {
       grain: 10,
     },
-    icon: CookingPot,
+    icon: COMPANY_ICONS.bakery,
     pollution_per_work: 1,
     max_level: 5,
   },
@@ -87,7 +79,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     build_cost_resources: {
       iron: 10,
     },
-    icon: Hammer,
+    icon: COMPANY_ICONS.smithy,
     pollution_per_work: 2,
     max_level: 5,
   },
@@ -100,7 +92,7 @@ export const COMPANY_TYPES: (StaticCompanyType & { category: CompanyCategory })[
     build_cost_resources: {
       oil: 5,
     },
-    icon: Train,
+    icon: COMPANY_ICONS.transit_station,
     pollution_per_work: 1,
     max_level: 5,
   },
@@ -116,3 +108,7 @@ export function getCompanyTypeByKey(key: string): StaticCompanyType | undefined 
 export function getCompanyIcon(key: string): LucideIcon {
   return getCompanyTypeByKey(key)?.icon || Building2;
 }
+
+// Also re-export from registry for consistency
+export { getCompanyIcon as getCompanyIconFromRegistry } from "@/lib/icons/registry";
+export { COMPANY_ICONS } from "@/lib/icons/registry";

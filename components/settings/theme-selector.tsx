@@ -1,9 +1,11 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { type UserTier, getAvailableThemes } from "@/lib/subscriptions/types";
 
 type Theme = "light" | "dark" | "discord-dark";
 
@@ -18,7 +20,7 @@ interface ThemeOption {
     card: string;
     primary: string;
   };
-  locked?: boolean; // For future premium feature
+  requiredTier: UserTier;
 }
 
 const themeOptions: ThemeOption[] = [
@@ -33,6 +35,7 @@ const themeOptions: ThemeOption[] = [
       card: "#fffdf6",
       primary: "#facc15",
     },
+    requiredTier: "alpha" as UserTier,
   },
   {
     value: "dark",
@@ -45,6 +48,7 @@ const themeOptions: ThemeOption[] = [
       card: "#0b1d3a",
       primary: "#38bdf8",
     },
+    requiredTier: "sigma" as UserTier,
   },
   {
     value: "discord-dark",
@@ -57,16 +61,38 @@ const themeOptions: ThemeOption[] = [
       card: "#2b2d31",
       primary: "#5865f2",
     },
+    requiredTier: "omega" as UserTier,
   },
 ];
 
-export function ThemeSelector() {
+interface ThemeSelectorProps {
+  userTier?: UserTier;
+}
+
+export function ThemeSelector({ userTier = "alpha" }: ThemeSelectorProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const getTierLevel = (tier: UserTier): number => {
+    return { alpha: 0, sigma: 1, omega: 2 }[tier] || 0;
+  };
+
+  const handleThemeClick = (option: ThemeOption) => {
+    const userLevel = getTierLevel(userTier);
+    const requiredLevel = getTierLevel(option.requiredTier);
+
+    if (userLevel >= requiredLevel) {
+      setTheme(option.value);
+    } else {
+      // Redirect to subscribe page
+      router.push("/subscribe");
+    }
+  };
 
   if (!mounted) {
     return null; // Avoid hydration mismatch
@@ -84,20 +110,21 @@ export function ThemeSelector() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {themeOptions.map((option) => {
           const isSelected = theme === option.value;
-          const isLocked = option.locked ?? false;
+          const userLevel = getTierLevel(userTier);
+          const requiredLevel = getTierLevel(option.requiredTier);
+          const isLocked = userLevel < requiredLevel;
 
           return (
             <button
               key={option.value}
-              onClick={() => !isLocked && setTheme(option.value)}
-              disabled={isLocked}
+              onClick={() => handleThemeClick(option)}
               className={cn(
                 "relative group flex flex-col gap-3 p-4 rounded-xl border-2 transition-all duration-200",
                 "hover:scale-[1.02] active:scale-[0.98]",
                 isSelected
                   ? "border-primary bg-primary/5 shadow-lg"
                   : "border-border bg-card hover:border-primary/50 hover:bg-accent/30",
-                isLocked && "opacity-50 cursor-not-allowed"
+                isLocked && "opacity-60 hover:opacity-80"
               )}
             >
               {/* Theme Preview */}
@@ -119,8 +146,13 @@ export function ThemeSelector() {
                     />
                   </div>
                 </div>
-                {isSelected && (
+                {isSelected && !isLocked && (
                   <div className="absolute top-2 right-2 h-3 w-3 rounded-full bg-primary ring-2 ring-background" />
+                )}
+                {isLocked && (
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+                    <Lock className="h-8 w-8 text-white drop-shadow-lg" />
+                  </div>
                 )}
               </div>
 
@@ -138,8 +170,8 @@ export function ThemeSelector() {
                   <div className="font-semibold text-foreground flex items-center gap-2">
                     {option.label}
                     {isLocked && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        Premium
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                        {option.requiredTier === "sigma" ? "Sigma" : "Omega"}
                       </span>
                     )}
                   </div>

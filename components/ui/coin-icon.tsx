@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { CURRENCY_COLORS } from "@/lib/design-system";
 
 interface CoinIconProps {
   className?: string;
@@ -16,13 +17,13 @@ export function GoldCoinIcon({ className }: CoinIconProps) {
       <circle cx="9" cy="9" r="2" fill="white" opacity="0.4" />
       <defs>
         <radialGradient id={gradientId} cx="0.3" cy="0.3" r="1">
-          <stop offset="0%" stopColor="#FFD700" />
-          <stop offset="50%" stopColor="#FFA500" />
-          <stop offset="100%" stopColor="#FF8C00" />
+          <stop offset="0%" stopColor={CURRENCY_COLORS.gold} />
+          <stop offset="50%" stopColor={CURRENCY_COLORS.goldDark} />
+          <stop offset="100%" stopColor={CURRENCY_COLORS.goldDarker} />
         </radialGradient>
         <radialGradient id={shineId} cx="0.4" cy="0.4" r="0.8">
-          <stop offset="0%" stopColor="#FFFFE0" />
-          <stop offset="100%" stopColor="#FFD700" opacity="0" />
+          <stop offset="0%" stopColor={CURRENCY_COLORS.goldLight} />
+          <stop offset="100%" stopColor={CURRENCY_COLORS.gold} opacity="0" />
         </radialGradient>
       </defs>
     </svg>

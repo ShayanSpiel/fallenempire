@@ -9,6 +9,7 @@ import { BattleListSidebar } from "@/components/feed/battle-list-sidebar";
 import { WorldEventsSidebar } from "@/components/feed/world-events-sidebar";
 import { CommunityEventsSidebar } from "@/components/feed/community-events-sidebar";
 import { MissionSidebarWrapper } from "@/components/feed/mission-sidebar-wrapper";
+import { SubscriptionBanner } from "@/components/feed/subscription-banner";
 import { getUserMissions } from "@/app/actions/missions";
 import { PageSection } from "@/components/layout/page-section";
 import {
@@ -401,6 +402,7 @@ export default async function FeedPage() {
         sidebar={
           <div className="space-y-6">
             <MissionSidebarWrapper initialMissions={missions} />
+            <SubscriptionBanner userTier={viewerProfile.userTier || "alpha"} />
             <BattleListSidebar battles={battles} />
             <WorldEventsSidebar events={worldEvents} />
             <CommunityEventsSidebar events={communityEvents} />

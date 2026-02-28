@@ -65,6 +65,7 @@ export default async function SettingsPage() {
     username: profile.username ?? user.email ?? "Agent",
     avatar_url: profile.avatar_url ?? null,
     identity_label: profile.identity_label ?? null,
+    user_tier: (profile.user_tier as 'alpha' | 'sigma' | 'omega') ?? 'alpha',
     avatar_style: profile.avatar_style ?? null,
     avatar_background_color: profile.avatar_background_color ?? null,
     avatar_hair: profile.avatar_hair ?? null,

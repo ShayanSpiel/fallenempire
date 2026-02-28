@@ -1,41 +1,10 @@
-import {
-  Apple,
-  Box,
-  Droplet,
-  Mountain,
-  Sword,
-  Ticket,
-  Wheat,
-} from "lucide-react";
-import type { ComponentType } from "react";
+/**
+ * Resource Icons - Centralized in lib/icons/registry.ts
+ * This file re-exports from the unified icon registry for backward compatibility
+ */
 
-export type ResourceIconName =
-  | "wheat"
-  | "mountain"
-  | "droplet"
-  | "apple"
-  | "sword"
-  | "ticket"
-  | "box";
-
-export const RESOURCE_ICON_COMPONENTS: Record<
-  ResourceIconName,
-  ComponentType<{ className?: string }>
-> = {
-  wheat: Wheat,
-  mountain: Mountain,
-  droplet: Droplet,
-  apple: Apple,
-  sword: Sword,
-  ticket: Ticket,
-  box: Box,
-};
-
-export function getResourceIconComponent(iconName?: string | null) {
-  if (!iconName) {
-    return RESOURCE_ICON_COMPONENTS.box;
-  }
-
-  const normalized = iconName.trim().toLowerCase() as ResourceIconName;
-  return RESOURCE_ICON_COMPONENTS[normalized] ?? RESOURCE_ICON_COMPONENTS.box;
-}
+export {
+  RESOURCE_ICONS as RESOURCE_ICON_COMPONENTS,
+  getResourceIconComponent,
+  type ResourceIconName,
+} from "@/lib/icons/registry";

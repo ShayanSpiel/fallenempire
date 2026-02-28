@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { motion } from "framer-motion"
 import {
   Globe,
   Home,
@@ -21,7 +22,9 @@ import {
   ChevronUp,
   PanelTopClose,
   PanelTopOpen,
+  Heart,
 } from "lucide-react"
+import { PageTransition } from "./page-transition"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -294,6 +297,17 @@ function AppShellContent({ children, user }: AppShellProps) {
             </DropdownMenu>
             {user && <UserSearchNav />}
             {user && (
+              <Link href="/subscribe">
+                <Button
+                  variant="ghost"
+                  className="h-10 px-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-500/30 dark:border-amber-400/30 text-amber-700 dark:text-amber-400 font-semibold transition-all shadow-sm hover:shadow-md hidden md:inline-flex"
+                >
+                  <Heart className="h-4 w-4 mr-1.5" />
+                  <span className="hidden lg:inline">Support</span>
+                </Button>
+              </Link>
+            )}
+            {user && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -442,8 +456,10 @@ function AppShellContent({ children, user }: AppShellProps) {
         className="flex flex-1 flex-col overflow-hidden"
       >
         <div className="flex-1 overflow-y-auto px-4 lg:px-6 bg-muted/20 scroll-smooth">
-          <div className="mx-auto max-w-6xl animate-in fade-in-5 slide-in-from-bottom-2 duration-500">
-            {children}
+          <div className="mx-auto max-w-6xl">
+            <PageTransition>
+              {children}
+            </PageTransition>
           </div>
         </div>
       </main>

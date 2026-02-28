@@ -35,6 +35,7 @@ interface SettingsProfile {
   username: string;
   avatar_url: string | null;
   identity_label?: string | null;
+  user_tier?: 'alpha' | 'sigma' | 'omega';
   avatar_style?: string | null;
   avatar_background_color?: string | null;
   avatar_hair?: string | null;
@@ -433,7 +434,7 @@ export function SettingsView({ profile }: { profile: SettingsProfile }) {
                 {/* Theme Selector Section */}
                 <Card>
                   <CardContent className="space-y-6">
-                    <ThemeSelector />
+                    <ThemeSelector userTier={profile.user_tier || 'alpha'} />
                   </CardContent>
                 </Card>
 

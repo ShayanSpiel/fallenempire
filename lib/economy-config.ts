@@ -1,6 +1,8 @@
 // Economy Module Configuration
 // Zero-hardcoding approach: All game constants defined here
 
+import { CURRENCY_COLORS, STAR_COLORS } from "./design-system";
+
 export const ECONOMY_CONFIG = {
   // ============================================================================
   // RESOURCE SETTINGS
@@ -21,8 +23,8 @@ export const ECONOMY_CONFIG = {
   // Quality tiers
   qualities: {
     levels: 5, // Q1-Q5
-    starColor: "#FFD700", // Gold color for stars
-    emptyStarColor: "#6B7280", // Gray color for empty stars
+    starColor: STAR_COLORS.filled, // Gold color for stars
+    emptyStarColor: STAR_COLORS.empty, // Gray color for empty stars
   },
 
   // ============================================================================
@@ -56,8 +58,8 @@ export const ECONOMY_CONFIG = {
     decimalPlaces: 2,
 
     // Color coding for currency displays
-    goldColor: "#FFD700", // Gold color
-    communityColorDefault: "#3B82F6", // Blue for community currencies
+    goldColor: CURRENCY_COLORS.gold,
+    communityColorDefault: CURRENCY_COLORS.community,
   },
 
   // ============================================================================

@@ -629,6 +629,152 @@ export const notificationStyles = {
   },
 } as const;
 
+// ============================================================================
+// ICON & COLOR SYSTEM (NEW - UNIFIED)
+// ============================================================================
+
+/**
+ * CURRENCY COLORS
+ * Single source of truth for all currency color definitions
+ */
+export const CURRENCY_COLORS = {
+  gold: "#FFD700",
+  goldDark: "#FFA500",
+  goldDarker: "#FF8C00",
+  goldLight: "#FFFFE0",
+  community: "#3B82F6", // Default community currency color
+} as const;
+
+/**
+ * QUALITY TIER SYSTEM
+ * Centralized quality tier definitions with colors, icons, and bonuses
+ */
+export const QUALITY_TIERS = {
+  1: {
+    name: "Common",
+    icon: "🔫", // Weapons
+    breadIcon: "🍞", // Food
+    color: "text-gray-400",
+    bgColor: "bg-gray-500/10",
+    borderColor: "border-gray-500/20",
+    hexColor: "#9CA3AF",
+    damageBonus: 0.2, // +20%
+  },
+  2: {
+    name: "Uncommon",
+    icon: "🔫", // Weapons
+    breadIcon: "🥖", // Food
+    color: "text-green-500",
+    bgColor: "bg-green-500/10",
+    borderColor: "border-green-500/20",
+    hexColor: "#22C55E",
+    damageBonus: 0.3, // +30%
+  },
+  3: {
+    name: "Rare",
+    icon: "💥", // Weapons
+    breadIcon: "🥐", // Food
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    hexColor: "#3B82F6",
+    damageBonus: 0.4, // +40%
+  },
+  4: {
+    name: "Epic",
+    icon: "💣", // Weapons
+    breadIcon: "🥯", // Food
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/20",
+    hexColor: "#A855F7",
+    damageBonus: 0.5, // +50%
+  },
+  5: {
+    name: "Legendary",
+    icon: "🚁", // Weapons
+    breadIcon: "🎂", // Food
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+    borderColor: "border-orange-500/20",
+    hexColor: "#F97316",
+    damageBonus: 0.6, // +60%
+  },
+} as const;
+
+export type QualityTier = keyof typeof QUALITY_TIERS;
+
+/**
+ * QUALITY TIER LOOKUP FUNCTIONS
+ * Helper functions for accessing quality tier properties
+ */
+export function getQualityName(tier: number): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.name ?? QUALITY_TIERS[1].name;
+}
+
+export function getQualityIcon(tier: number, type: "weapon" | "food" = "weapon"): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  if (!qualityTier) return type === "weapon" ? QUALITY_TIERS[1].icon : QUALITY_TIERS[1].breadIcon;
+  return type === "weapon" ? qualityTier.icon : qualityTier.breadIcon;
+}
+
+export function getQualityColor(tier: number): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.color ?? QUALITY_TIERS[1].color;
+}
+
+export function getQualityBgColor(tier: number): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.bgColor ?? QUALITY_TIERS[1].bgColor;
+}
+
+export function getQualityBorderColor(tier: number): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.borderColor ?? QUALITY_TIERS[1].borderColor;
+}
+
+export function getQualityHexColor(tier: number): string {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.hexColor ?? QUALITY_TIERS[1].hexColor;
+}
+
+export function getWeaponDamageBonus(tier: number): number {
+  const qualityTier = QUALITY_TIERS[tier as QualityTier];
+  return qualityTier?.damageBonus ?? 0;
+}
+
+export function getWeaponDamageBonusPercent(tier: number): string {
+  return `+${Math.round(getWeaponDamageBonus(tier) * 100)}%`;
+}
+
+/**
+ * STAR RATING COLORS
+ * Colors for quality/rating stars
+ */
+export const STAR_COLORS = {
+  filled: CURRENCY_COLORS.gold,
+  empty: "#6B7280", // Gray for empty stars
+} as const;
+
+/**
+ * ICON SIZING CLASSES
+ * Companion size classes for consistent icon sizing
+ */
+export const SIZE_CLASSES = {
+  sm: "text-base",
+  md: "text-xl",
+  lg: "text-2xl",
+  xl: "text-3xl",
+} as const;
+
+export const FOOD_SIZE_CLASSES = {
+  sm: "text-sm",
+  md: "text-base",
+  lg: "text-lg",
+  xl: "text-2xl",
+} as const;
+
 /**
  * UTILITY FUNCTION: Combine design tokens
  */

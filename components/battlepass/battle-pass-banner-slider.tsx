@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Leaf, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Leaf, Clock, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BattlePassData } from "./types";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 interface BattlePassBannerSliderProps {
   data: BattlePassData | null;
@@ -27,10 +28,12 @@ function getRewardIcon(rewardType: string, qualityKey?: string) {
 export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBannerSliderProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const router = useRouter();
 
   if (!data || !data.success) return null;
 
   const { season, progress, tiers, claimed_rewards } = data;
+  const hasKeeperPass = progress.has_keeper_pass || false;
   const xpInCurrentTier = progress.total_xp % season.xp_per_tier;
   const progressPercent = (xpInCurrentTier / season.xp_per_tier) * 100;
 
@@ -251,34 +254,85 @@ export function BattlePassBannerSlider({ data, onClaimReward }: BattlePassBanner
             </div>
 
             {/* Keeper Pass */}
-            <div className="space-y-2 opacity-50">
+            <div className={cn("space-y-2", !hasKeeperPass && "opacity-50")}>
               <div className="flex items-center gap-2">
-                <div className="text-xs font-semibold text-amber-800 dark:text-amber-200">
-                  Keeper Pass
+                <div className="flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <div className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                    Keeper Pass
+                  </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                  Coming Soon
-                </span>
+                {!hasKeeperPass && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push("/subscribe")}
+                    className="h-5 text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium border-0 shadow-sm"
+                  >
+                    Upgrade
+                  </Button>
+                )}
               </div>
-              <div className="grid grid-cols-10 gap-2 px-10">
-                {paginatedKeeperRewards.map((tier) => {
-                  const icon = getRewardIcon(tier.reward_type, tier.reward_data?.quality_key);
+              <div className="relative">
+                <div className="grid grid-cols-10 gap-2 px-10">
+                  {paginatedKeeperRewards.map((tier) => {
+                    const isUnlocked = hasKeeperPass && tier.tier_number <= progress.current_tier;
+                    const isClaimed = isRewardClaimed(tier.tier_number, "keeper");
+                    const icon = getRewardIcon(tier.reward_type, tier.reward_data?.quality_key);
 
-                  return (
-                    <div
-                      key={`keeper-${tier.tier_number}`}
-                      className="relative aspect-square rounded-md flex flex-col items-center justify-center bg-muted/50 border border-muted-foreground/20 grayscale"
-                    >
-                      <span className="text-xl">{icon}</span>
-                      <span className="text-[9px] font-bold mt-0.5 text-muted-foreground">
-                        {tier.reward_amount}
-                      </span>
-                      <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-muted border border-background text-[8px] font-bold text-muted-foreground flex items-center justify-center z-10">
-                        {tier.tier_number}
-                      </div>
+                    return (
+                      <button
+                        key={`keeper-${tier.tier_number}`}
+                        onClick={() =>
+                          hasKeeperPass && isUnlocked && !isClaimed && handleClaimReward(tier.tier_number, "keeper")
+                        }
+                        disabled={!hasKeeperPass || !isUnlocked || isClaimed}
+                        className={cn(
+                          "relative aspect-square rounded-md flex flex-col items-center justify-center transition-all border",
+                          !hasKeeperPass && "opacity-50 grayscale bg-muted border-muted-foreground/20 cursor-pointer hover:opacity-70",
+                          hasKeeperPass && !isUnlocked && "opacity-40 grayscale bg-muted border-muted-foreground/20",
+                          hasKeeperPass && isClaimed && "bg-green-500/20 border-green-500/50 shadow-sm",
+                          hasKeeperPass && isUnlocked && !isClaimed && "bg-gradient-to-br from-orange-300/70 via-amber-300/60 to-orange-400/70 dark:from-orange-500/60 dark:via-amber-500/50 dark:to-orange-600/60 border-orange-400 dark:border-orange-500 hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-lg hover:shadow-orange-400/40 cursor-pointer animate-pulse"
+                        )}
+                        style={{
+                          boxShadow: hasKeeperPass && isUnlocked && !isClaimed
+                            ? "0 0 20px rgba(251, 146, 60, 0.5)"
+                            : undefined,
+                        }}
+                      >
+                        <span className="text-xl">{icon}</span>
+                        <span className={cn(
+                          "text-[9px] font-bold mt-0.5",
+                          hasKeeperPass ? "text-orange-900 dark:text-orange-100" : "text-muted-foreground"
+                        )}>
+                          {tier.reward_amount}
+                        </span>
+                        <div className={cn(
+                          "absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full border border-background text-[8px] font-bold flex items-center justify-center shadow-md z-10",
+                          hasKeeperPass ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white" : "bg-muted text-muted-foreground"
+                        )}>
+                          {tier.tier_number}
+                        </div>
+                        {hasKeeperPass && isClaimed && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
+                            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
+                              ✓
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!hasKeeperPass && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[1px] rounded-md cursor-pointer" onClick={() => router.push("/subscribe")}>
+                    <div className="text-center space-y-1">
+                      <Crown className="w-8 h-8 text-amber-600 dark:text-amber-400 mx-auto" />
+                      <div className="text-xs font-semibold text-foreground">Unlock Keeper Pass</div>
+                      <div className="text-[10px] text-muted-foreground">Get 2x rewards with Sigma or Omega</div>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             </div>
 

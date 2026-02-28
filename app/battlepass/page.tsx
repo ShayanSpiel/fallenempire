@@ -187,9 +187,11 @@ export default function BattlePassPage() {
             <div className="flex items-center gap-2">
               Keeper Pass
               {!progress.has_keeper_pass && (
-                <Badge variant="outline" className="text-xs border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400">
-                  Coming Soon
-                </Badge>
+                <Link href="/subscribe">
+                  <Badge className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer transition-all shadow-sm">
+                    Unlock
+                  </Badge>
+                </Link>
               )}
             </div>
           </div>

@@ -22,6 +22,10 @@ function getMedalImageUrl(medalKey: string): string {
   switch (medalKey) {
     case "battle_hero":
       return "https://i.ibb.co/zTtkV0y4/battle-hero2.png";
+    case "sigma-supporter":
+    case "omega-supporter":
+      // Use a generic shield/crown icon for supporter medals
+      return "https://i.ibb.co/zTtkV0y4/battle-hero2.png"; // Placeholder - can be updated with custom supporter medal images
     default:
       return "https://i.ibb.co/zTtkV0y4/battle-hero2.png";
   }
@@ -37,6 +41,7 @@ export function MedalBadge({
   const imageUrl = getMedalImageUrl(medalKey);
   const hasEarned = count > 0;
   const [imageError, setImageError] = React.useState(false);
+  const isSupporterMedal = medalKey === "sigma-supporter" || medalKey === "omega-supporter";
 
   const formattedDate = earnedAt
     ? new Date(earnedAt).toLocaleDateString("en-US", {
@@ -80,13 +85,19 @@ export function MedalBadge({
                 relative px-2 py-1 rounded-md text-xs font-bold
                 transition-all duration-300
                 ${
-                  hasEarned
+                  isSupporterMedal && hasEarned
+                    ? medalKey === "sigma-supporter"
+                      ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white"
+                      : "bg-gradient-to-r from-amber-600 to-orange-600 text-white"
+                    : hasEarned
                     ? "bg-gradient-to-r from-amber-900 to-slate-900 text-amber-300"
                     : "bg-gradient-to-r from-slate-700 to-slate-800 text-slate-400"
                 }
               `}
             >
-              <span className="tabular-nums">{count}</span>
+              <span className="tabular-nums">
+                {isSupporterMedal ? `${count} ${count === 1 ? 'month' : 'months'}` : count}
+              </span>
             </div>
           </div>
         </TooltipTrigger>
